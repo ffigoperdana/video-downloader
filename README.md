@@ -1,3 +1,12 @@
+---
+title: SaveIt Video Downloader
+emoji: 📥
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # SaveIt — Open Source Video Downloader
 
 **SaveIt** is a free, open-source web application for downloading videos from YouTube, TikTok, and Instagram — with more platforms on the way. Built with Next.js App Router, it uses `yt-dlp` under the hood to deliver fast, high-quality downloads with no watermarks and no registration required.
