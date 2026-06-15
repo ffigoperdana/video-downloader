@@ -180,7 +180,7 @@ docker build -t saveit .
 # Run the container
 docker run -d \
   --name saveit \
-  -p 8080:8080 \
+  -p 8080:7860 \
   --restart unless-stopped \
   saveit
 ```
