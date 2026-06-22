@@ -19,11 +19,11 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL("https://saveit.app"),
   title: {
-    default: "SaveIt — Download YouTube, TikTok, Instagram, Facebook, X & Threads Videos Free",
+    default: "SaveIt — Download Videos & Images Free",
     template: "%s | SaveIt",
   },
   description:
-    "Download videos from YouTube, TikTok, Instagram, Facebook, X (Twitter), and Threads in seconds. No watermark, high quality MP4, free and no registration required. Batch downloads, download history, PWA support.",
+    "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, and Threads.",
   keywords: [
     "video downloader",
     "youtube downloader",
@@ -31,8 +31,10 @@ export const metadata: Metadata = {
     "instagram downloader",
     "facebook downloader",
     "twitter video downloader",
+    "twitter image downloader",
     "x video downloader",
     "threads downloader",
+    "social media image downloader",
     "download youtube video",
     "download tiktok no watermark",
     "download instagram reel",
@@ -49,23 +51,23 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://saveit.app",
     siteName: "SaveIt",
-    title: "SaveIt — Download YouTube, TikTok, Instagram, Facebook, X & Threads Videos Free",
+    title: "SaveIt — Download Videos & Images Free",
     description:
-      "Download videos from YouTube, TikTok, Instagram, Facebook, X, and Threads in seconds. No watermark, high quality, free. Batch downloads, download history.",
+      "Download public videos and image posts from YouTube, TikTok, Instagram, Facebook, X, and Threads.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "SaveIt Video Downloader",
+        alt: "SaveIt Video and Image Downloader",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SaveIt — Download YouTube, TikTok, Instagram, Facebook, X & Threads Videos Free",
+    title: "SaveIt — Download Videos & Images Free",
     description:
-      "Download videos from YouTube, TikTok, Instagram, Facebook, X, and Threads in seconds.",
+      "Download public videos and images from six supported platforms.",
     images: ["/og-image.png"],
   },
   robots: {

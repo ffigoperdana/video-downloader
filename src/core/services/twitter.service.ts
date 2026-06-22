@@ -1,4 +1,5 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import { isValidTwitterUrl as validateTwitterUrl } from "@/core/utils/url-validators";
 import {
   getSocialImageAssets,
   type SocialImageAsset,
@@ -49,7 +50,7 @@ export function cleanTwitterUrl(rawUrl: string): string {
 }
 
 export function isValidTwitterUrl(url: string): boolean {
-  return /(?:twitter\.com|x\.com)\/\w+\/status\/\d+/.test(url);
+  return validateTwitterUrl(url);
 }
 
 function withTimeout<T>(

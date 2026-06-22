@@ -1,4 +1,5 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import { isValidTikTokUrl as validateTikTokUrl } from "@/core/utils/url-validators";
 import {
   getSocialImageAssets,
   type SocialImageAsset,
@@ -47,7 +48,7 @@ export function cleanTikTokUrl(rawUrl: string): string {
       return rawUrl.split("?")[0];
     }
     // www.tiktok.com/@user/video/VIDEO_ID
-    if (u.hostname.includes("tiktok.com")) {
+    if (u.hostname === "tiktok.com" || u.hostname.endsWith(".tiktok.com")) {
       // Strip query params (tracking etc.)
       return `${u.origin}${u.pathname}`;
     }
@@ -56,9 +57,7 @@ export function cleanTikTokUrl(rawUrl: string): string {
 }
 
 export function isValidTikTokUrl(url: string): boolean {
-  return /tiktok\.com\/([@\w.]+\/(?:video|photo)\/\d+|v\/\d+)|vm\.tiktok\.com|vt\.tiktok\.com/.test(
-    url,
-  );
+  return validateTikTokUrl(url);
 }
 
 function withTimeout<T>(

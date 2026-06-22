@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { youtubeDownloaderService } from "@/core/services/youtube.service";
+import { isValidYoutubeUrl } from "@/core/utils/url-validators";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -12,6 +13,10 @@ export async function GET(request: NextRequest) {
 
   if (!url) {
     return NextResponse.json({ error: "Missing url" }, { status: 400 });
+  }
+
+  if (!isValidYoutubeUrl(url)) {
+    return NextResponse.json({ error: "Invalid YouTube URL" }, { status: 400 });
   }
 
   const contentType = quality === "audio" ? "audio/mp4" : "video/mp4";
@@ -58,7 +63,8 @@ export async function GET(request: NextRequest) {
         });
       },
       cancel() {
-        if ("destroy" in ytStream) (ytStream as any).destroy();
+        const destroyable = ytStream as { destroy?: () => void };
+        destroyable.destroy?.();
       },
     });
 
@@ -69,10 +75,11 @@ export async function GET(request: NextRequest) {
         "Transfer-Encoding": "chunked",
       },
     });
-  } catch (err: any) {
-    console.error("[/internal/download/youtube]", err?.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Download failed";
+    console.error("[/internal/download/youtube]", message);
     return NextResponse.json(
-      { error: err?.message ?? "Download failed" },
+      { error: message },
       { status: 500 },
     );
   }

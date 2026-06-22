@@ -1,7 +1,7 @@
 {
-  "name": "SaveIt — Video Downloader",
+  "name": "SaveIt — Video & Image Downloader",
   "short_name": "SaveIt",
-  "description": "Download videos from YouTube, TikTok, Instagram, Facebook, X, and Threads for free.",
+  "description": "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, and Threads.",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#080808",

@@ -3,9 +3,9 @@ import Link from "next/link";
 import Navbar from "@/components/navbar";
 
 export const metadata: Metadata = {
-  title: "SaveIt — Free Video Downloader for YouTube, TikTok, Instagram, Facebook, X & Threads",
+  title: "SaveIt — Free Video & Image Downloader",
   description:
-    "Download videos from YouTube, TikTok, Instagram, Facebook, X (Twitter) and Threads for free. No watermark, HD quality, no login required. Batch downloads, download history, PWA support.",
+    "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, and Threads for free.",
   alternates: { canonical: "https://saveit.app" },
 };
 
@@ -35,9 +35,9 @@ const PLATFORMS = [
   {
     href: "/tiktok",
     name: "TikTok",
-    tagline: "No watermark",
+    tagline: "Videos & Photo Posts",
     description:
-      "Save TikTok videos without the annoying watermark. Clean, original quality file direct to your device.",
+      "Save TikTok videos without watermark and download every image from public photo posts.",
     accent: "from-pink-500 to-cyan-400",
     border: "border-pink-500/20 hover:border-pink-500/50",
     glow: "hover:shadow-pink-500/10",
@@ -51,15 +51,15 @@ const PLATFORMS = [
       "Zero watermark",
       "HD video quality",
       "Audio extraction",
-      "All regions",
+      "Photo posts",
     ],
   },
   {
     href: "/instagram",
     name: "Instagram",
-    tagline: "Reels & Posts",
+    tagline: "Reels, Photos & Carousels",
     description:
-      "Download Instagram Reels, feed posts, IGTV and carousel slides. Full resolution, original quality.",
+      "Download Instagram Reels, feed photos, IGTV, and image or video carousel slides.",
     accent: "from-yellow-400 via-pink-500 to-purple-600",
     border: "border-purple-500/20 hover:border-purple-500/50",
     glow: "hover:shadow-purple-500/10",
@@ -71,7 +71,7 @@ const PLATFORMS = [
     ),
     features: [
       "Reels & feed posts",
-      "Carousel support",
+      "Photo carousels",
       "IGTV videos",
       "Original quality",
     ],
@@ -79,9 +79,9 @@ const PLATFORMS = [
   {
     href: "/facebook",
     name: "Facebook",
-    tagline: "Videos & Reels",
+    tagline: "Videos, Reels & Photos",
     description:
-      "Download Facebook videos, reels, and stories. HD quality, fast and free.",
+      "Download public Facebook videos, reels, and image posts in their available quality.",
     accent: "from-blue-500 to-blue-600",
     border: "border-blue-500/20 hover:border-blue-500/50",
     glow: "hover:shadow-blue-500/10",
@@ -95,15 +95,15 @@ const PLATFORMS = [
       "Videos & reels",
       "HD quality",
       "fb.watch links",
-      "Stories support",
+      "Public image posts",
     ],
   },
   {
     href: "/twitter",
     name: "X",
-    tagline: "Videos & GIFs",
+    tagline: "Videos, GIFs & Images",
     description:
-      "Download X (Twitter) videos, clips, and GIFs. Multiple quality options, fast and free.",
+      "Download videos, GIFs, and original images from public X or Twitter posts.",
     accent: "from-sky-400 to-blue-500",
     border: "border-sky-500/20 hover:border-sky-500/50",
     glow: "hover:shadow-sky-500/10",
@@ -117,15 +117,15 @@ const PLATFORMS = [
       "X & Twitter posts",
       "Multiple bitrates",
       "GIF support",
-      "x.com + twitter.com",
+      "Image posts",
     ],
   },
   {
     href: "/threads",
     name: "Threads",
-    tagline: "Experimental",
+    tagline: "Videos & Images",
     description:
-      "Download videos and images from Threads (threads.net). Experimental support, free and fast.",
+      "Download videos and images from public Threads posts on threads.com.",
     accent: "from-zinc-100 to-zinc-400",
     border: "border-zinc-500/20 hover:border-zinc-400/50",
     glow: "hover:shadow-zinc-500/10",
@@ -137,9 +137,9 @@ const PLATFORMS = [
     ),
     features: [
       "Videos & images",
-      "thread.net links",
+      "threads.com links",
       "Public posts",
-      "Experimental",
+      "Image galleries",
     ],
   },
 ];
@@ -148,7 +148,7 @@ const BENEFITS = [
   {
     icon: "⚡",
     title: "Lightning Fast",
-    body: "Videos start downloading in under 2 seconds. No waiting, no buffering — direct from CDN to your device.",
+    body: "Supported media starts downloading without an upload step or permanent server storage.",
   },
   {
     icon: "🚫",
@@ -158,7 +158,7 @@ const BENEFITS = [
   {
     icon: "🔒",
     title: "Private by Default",
-    body: "We don't log URLs, store your videos, or track your downloads. What you save is your business.",
+    body: "We don't permanently store downloaded media. Your download history remains in your browser.",
   },
   {
     icon: "📱",
@@ -173,17 +173,17 @@ const BENEFITS = [
   {
     icon: "📥",
     title: "Batch Downloads",
-    body: "Download multiple videos at once from Instagram carousels. Real-time progress tracking for each item.",
+    body: "Download media from Instagram carousels and save each image from supported photo posts.",
   },
   {
     icon: "🕐",
     title: "Download History",
-    body: "Your downloads are saved locally. Re-download past videos anytime — everything is organized by date.",
+    body: "Your download history is saved locally so videos and images stay organized by date.",
   },
   {
     icon: "🎯",
     title: "6 Platforms",
-    body: "YouTube, TikTok, Instagram, Facebook, X, and Threads — all major video platforms in one place.",
+    body: "Video, audio, and public image posts from six major platforms in one place.",
   },
 ];
 
@@ -191,17 +191,17 @@ const HOW_IT_WORKS = [
   {
     step: "01",
     title: "Copy the URL",
-    body: "Go to any supported platform and copy the link to any video, reel, or post.",
+    body: "Go to a supported platform and copy the link to a public video, reel, photo, or post.",
   },
   {
     step: "02",
     title: "Paste & Fetch",
-    body: "Paste the URL into SaveIt and click Fetch. We'll grab the title, thumbnail and available formats.",
+    body: "Paste the URL into the matching downloader. SaveIt validates the platform and finds its available media.",
   },
   {
     step: "03",
     title: "Choose & Download",
-    body: "Pick your quality or format, then click Download. Your file saves directly to your device.",
+    body: "Choose a video quality or download individual images directly to your device.",
   },
 ];
 
@@ -212,7 +212,7 @@ const FAQS = [
   },
   {
     q: "Which platforms are supported?",
-    a: "YouTube, TikTok, Instagram, Facebook, X (Twitter), and Threads. We're constantly working on improving support for all platforms.",
+    a: "YouTube supports video and audio. TikTok, Instagram, Facebook, X, and Threads support public videos and image posts.",
   },
   {
     q: "Can I download TikTok videos without watermark?",
@@ -223,8 +223,8 @@ const FAQS = [
     a: "Up to 1080p Full HD. For resolutions ≤720p the download is near-instant via CDN. 1080p requires server-side merging of separate video and audio streams.",
   },
   {
-    q: "Can I download multiple videos at once?",
-    a: "Yes! Instagram carousel posts support batch downloading. Click 'Download All Videos' and each video downloads sequentially with real-time progress tracking.",
+    q: "Can I download image posts and carousels?",
+    a: "Yes. Public image posts are supported on TikTok, Instagram, Facebook, X, and Threads. Each discovered image has its own download button.",
   },
   {
     q: "Does SaveIt work on mobile?",
@@ -235,8 +235,8 @@ const FAQS = [
     a: "No. SaveIt only works with publicly accessible content. Private accounts require authentication which we do not support.",
   },
   {
-    q: "Do you store downloaded videos?",
-    a: "No. Videos are streamed directly to your browser and are never stored on our servers. Your download history is saved locally in your browser only.",
+    q: "Do you store downloaded media?",
+    a: "No. Videos and images are streamed to your browser and are not stored permanently. Download history stays in your browser.",
   },
 ];
 
@@ -274,7 +274,7 @@ export default function LandingPage() {
 
           {/* Headline */}
           <h1 className="animate-fade-up delay-100 font-syne text-5xl sm:text-6xl md:text-7xl font-800 leading-[1.05] tracking-tight">
-            Download any video
+            Download videos & images
             <br />
             <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
               in seconds.
@@ -282,8 +282,8 @@ export default function LandingPage() {
           </h1>
 
           <p className="animate-fade-up delay-200 text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed font-light">
-            YouTube, TikTok, Instagram, Facebook, X, Threads — save any video to your device, in full
-            quality, completely free. No watermarks, no sign-up.
+            Save videos, audio, and public image posts from six platforms in
+            their available quality. No sign-up required.
           </p>
 
           {/* CTA buttons */}
@@ -536,7 +536,7 @@ export default function LandingPage() {
               <h2 className="font-syne text-3xl sm:text-4xl font-700 text-white leading-tight">
                 Ready to save
                 <br />
-                your first video?
+                your first download?
               </h2>
               <p className="text-zinc-400 text-sm">
                 Pick a platform and paste your link. Takes less than 5 seconds.

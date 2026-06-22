@@ -4,6 +4,7 @@ import {
   youtubeDownloaderService,
   VideoInfo,
 } from "@/core/services/youtube.service";
+import { isValidYoutubeUrl } from "@/core/utils/url-validators";
 
 export interface GetVideoInfoResult {
   success: boolean;
@@ -14,16 +15,15 @@ export interface GetVideoInfoResult {
 function cleanYoutubeUrl(url: string): string {
   try {
     const u = new URL(url);
+    const isYoutube =
+      u.hostname === "youtube.com" ||
+      u.hostname.endsWith(".youtube.com") ||
+      u.hostname === "youtu.be";
+    if (!isYoutube) return url;
     const v = u.searchParams.get("v");
     if (v) return `https://www.youtube.com/watch?v=${v}`;
   } catch {}
   return url;
-}
-
-function isValidYoutubeUrl(url: string): boolean {
-  return /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?.*v=|shorts\/)|youtu\.be\/)[\w\-]{11}/.test(
-    url,
-  );
 }
 
 export async function getVideoInfoAction(

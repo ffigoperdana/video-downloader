@@ -1,4 +1,5 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import { isValidFacebookUrl as validateFacebookUrl } from "@/core/utils/url-validators";
 import {
   getSocialImageAssets,
   type SocialImageAsset,
@@ -35,7 +36,7 @@ export function cleanFacebookUrl(rawUrl: string): string {
   try {
     const u = new URL(rawUrl);
     if (u.hostname === "fb.watch") return rawUrl;
-    if (u.hostname.includes("facebook.com")) {
+    if (u.hostname === "facebook.com" || u.hostname.endsWith(".facebook.com")) {
       const clean = new URL(`https://www.facebook.com${u.pathname}`);
       for (const key of ["v", "story_fbid", "id", "fbid"]) {
         const value = u.searchParams.get(key);
@@ -48,7 +49,7 @@ export function cleanFacebookUrl(rawUrl: string): string {
 }
 
 export function isValidFacebookUrl(url: string): boolean {
-  return /(?:facebook\.com|fb\.watch)\/.*/.test(url);
+  return validateFacebookUrl(url);
 }
 
 function withTimeout<T>(

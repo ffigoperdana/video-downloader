@@ -158,4 +158,23 @@ describe("isPlatformUrl", () => {
   it("returns null for unknown URL", () => {
     expect(isPlatformUrl("https://example.com/video")).toBeNull();
   });
+
+  it.each([
+    ["https://x.com/user/status/123", "twitter"],
+    ["https://instagram.com/p/abc", "instagram"],
+    ["https://www.tiktok.com/@user/photo/123", "tiktok"],
+    ["https://www.facebook.com/photo/?fbid=123", "facebook"],
+    ["https://threads.com/@user/post/ABC_123", "threads"],
+  ])("routes %s to %s", (url, platform) => {
+    expect(isPlatformUrl(url)).toBe(platform);
+  });
+
+  it.each([
+    "https://evil.example/?url=https://instagram.com/p/abc",
+    "https://notx.com/user/status/123",
+    "https://facebook.com.evil.example/reel/123",
+    "javascript:https://youtube.com/watch?v=dQw4w9WgXcQ",
+  ])("rejects spoofed URL %s", (url) => {
+    expect(isPlatformUrl(url)).toBeNull();
+  });
 });

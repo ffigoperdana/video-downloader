@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
+import UrlValidationError from "@/components/url-validation-error";
 import ImageMediaGallery from "@/components/image-media-gallery";
 import {
   getTikTokInfoAction,
@@ -95,7 +96,7 @@ export default function TikTokDownloader() {
             TikTok Downloader
           </h1>
           <p className="text-xs text-zinc-500">
-            No watermark · All regions · Audio extract
+            Videos · Photo posts · No watermark · Audio
           </p>
         </div>
       </div>
@@ -136,9 +137,11 @@ export default function TikTokDownloader() {
       </p>
 
       {error && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-500/8 border border-red-500/20 text-red-400 text-sm">
-          <span className="flex-shrink-0">⚠</span> {error}
-        </div>
+        <UrlValidationError
+          error={error}
+          inputUrl={url}
+          expectedPlatform="tiktok"
+        />
       )}
 
       {info && (

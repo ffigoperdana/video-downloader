@@ -1,4 +1,5 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import { isValidThreadsUrl as validateThreadsUrl } from "@/core/utils/url-validators";
 import {
   getSocialImageAssets,
   type SocialImageAsset,
@@ -41,9 +42,7 @@ export function cleanThreadsUrl(rawUrl: string): string {
 }
 
 export function isValidThreadsUrl(url: string): boolean {
-  return /threads\.(?:net|com)\/(@[\w.]+\/post\/[\w-]+|t\/[\w-]+)/.test(
-    url,
-  );
+  return validateThreadsUrl(url);
 }
 
 function withTimeout<T>(

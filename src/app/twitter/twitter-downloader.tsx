@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
+import UrlValidationError from "@/components/url-validation-error";
 import ImageMediaGallery from "@/components/image-media-gallery";
 import {
   getTwitterInfoAction,
@@ -88,7 +89,7 @@ export default function TwitterDownloader() {
             X / Twitter Downloader
           </h1>
           <p className="text-xs text-zinc-500">
-            Videos · GIFs · HD quality
+            Videos · GIFs · Image posts · HD quality
           </p>
         </div>
       </div>
@@ -128,9 +129,11 @@ export default function TwitterDownloader() {
       </p>
 
       {error && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-500/8 border border-red-500/20 text-red-400 text-sm">
-          <span className="flex-shrink-0">⚠</span> {error}
-        </div>
+        <UrlValidationError
+          error={error}
+          inputUrl={url}
+          expectedPlatform="twitter"
+        />
       )}
 
       {info && (

@@ -1,4 +1,5 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import { isValidInstagramUrl as validateInstagramUrl } from "@/core/utils/url-validators";
 import {
   getSocialImageAssets,
   type SocialImageAsset,
@@ -49,14 +50,16 @@ const getBinaryPath = () => process.env.YTDLP_BINARY_PATH ?? "yt-dlp";
 export function cleanInstagramUrl(rawUrl: string): string {
   try {
     const u = new URL(rawUrl);
-    if (!u.hostname.includes("instagram.com")) return rawUrl;
+    if (u.hostname !== "instagram.com" && !u.hostname.endsWith(".instagram.com")) {
+      return rawUrl;
+    }
     return `https://www.instagram.com${u.pathname}`;
   } catch {}
   return rawUrl;
 }
 
 export function isValidInstagramUrl(url: string): boolean {
-  return /instagram\.com\/(p|reel|tv|reels|stories)\/[\w\-]+/.test(url);
+  return validateInstagramUrl(url);
 }
 
 function withTimeout<T>(
