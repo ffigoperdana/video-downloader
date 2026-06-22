@@ -11,7 +11,7 @@ RUN corepack enable && corepack prepare pnpm@11.3.0 --activate
 # Copy package files first for better caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --reporter=append-only
 
 # Copy full project
 COPY . .
