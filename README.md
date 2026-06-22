@@ -169,7 +169,8 @@ docker compose logs -f
 docker compose down
 ```
 
-App will be available at **http://localhost:8080**
+The Compose service exposes container port `7860` to its Docker network for
+reverse proxies such as Coolify. It does not bind a host port.
 
 ### Option B — Docker CLI
 
@@ -184,6 +185,9 @@ docker run -d \
   --restart unless-stopped \
   saveit
 ```
+
+The Docker CLI example maps host port `8080` to container port `7860` for
+local access at **http://localhost:8080**.
 
 ---
 

@@ -26,7 +26,7 @@ export async function getThreadsInfoAction(
     return {
       success: false,
       error:
-        "Invalid Threads URL. Paste a threads.net link with /post/ or /t/.",
+        "Invalid Threads URL. Paste a threads.com post link.",
     };
   }
 
@@ -47,7 +47,7 @@ export async function getThreadsInfoAction(
       success: false,
       error:
         err?.message ??
-        "Failed to fetch Threads post. Threads support is experimental — some posts may not work.",
+        "Failed to fetch this public Threads post.",
     };
   }
 }

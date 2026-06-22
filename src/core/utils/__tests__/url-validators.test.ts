@@ -33,6 +33,7 @@ describe("isValidYoutubeUrl", () => {
 describe("isValidTikTokUrl", () => {
   it.each([
     "https://www.tiktok.com/@user/video/1234567890",
+    "https://www.tiktok.com/@user/photo/1234567890",
     "https://vm.tiktok.com/AbCdEf/",
     "https://vt.tiktok.com/AbCdEf/",
     "https://www.tiktok.com/@user/video/1234567890?lang=en",
@@ -112,6 +113,8 @@ describe("isValidThreadsUrl", () => {
     "https://www.threads.net/@user/post/1234567890",
     "https://threads.net/@user.post/post/1234567890",
     "https://www.threads.net/t/1234567890",
+    "https://www.threads.com/@user/post/DZ4Nbh_EkCF",
+    "https://threads.com/@user.name/post/AbC-123_xyz?xmt=abc",
   ])("validates %s", (url) => {
     expect(isValidThreadsUrl(url)).toBe(true);
   });

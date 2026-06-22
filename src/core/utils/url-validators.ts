@@ -13,7 +13,7 @@ export function isValidYoutubeUrl(url: string): boolean {
 }
 
 export function isValidTikTokUrl(url: string): boolean {
-  return /tiktok\.com\/([@\w.]+\/video\/\d+|v\/\d+)|vm\.tiktok\.com|vt\.tiktok\.com/.test(
+  return /tiktok\.com\/([@\w.]+\/(?:video|photo)\/\d+|v\/\d+)|vm\.tiktok\.com|vt\.tiktok\.com/.test(
     url,
   );
 }
@@ -31,7 +31,9 @@ export function isValidTwitterUrl(url: string): boolean {
 }
 
 export function isValidThreadsUrl(url: string): boolean {
-  return /threads\.net\/(@[\w.]+\/post\/\d+|t\/\d+)/.test(url);
+  return /threads\.(?:net|com)\/(@[\w.]+\/post\/[\w-]+|t\/[\w-]+)/.test(
+    url,
+  );
 }
 
 export function isPlatformUrl(url: string): PlatformType | null {

@@ -1,4 +1,8 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import {
+  getSocialImageAssets,
+  type SocialImageAsset,
+} from "./social-image.service";
 
 export interface TwitterVideoInfo {
   id: string;
@@ -12,6 +16,9 @@ export interface TwitterVideoInfo {
   like_count: number;
   retweet_count: number;
   formats: TwitterFormat[];
+  images: SocialImageAsset[];
+  media_type: "video" | "image";
+  hasNoVideo: boolean;
 }
 
 export interface TwitterFormat {
@@ -82,21 +89,44 @@ export class TwitterDownloaderService {
 
   async getVideoInfo(rawUrl: string): Promise<TwitterVideoInfo> {
     const url = cleanTwitterUrl(rawUrl);
+    const imagesPromise = getSocialImageAssets(url, "twitter").catch(() => []);
 
-    const jsonStr = await withTimeout(
-      this.ytDlp.execPromise([
-        url,
-        "-J",
-        "--skip-download",
-        "--no-warnings",
-        "--no-check-certificate",
-        "--extractor-retries",
-        "2",
-        ...TW_HEADERS,
-      ]),
-      45_000,
-      "twitter:getVideoInfo",
-    );
+    let jsonStr: string;
+    try {
+      jsonStr = await withTimeout(
+        this.ytDlp.execPromise([
+          url,
+          "-J",
+          "--skip-download",
+          "--no-warnings",
+          "--no-check-certificate",
+          "--extractor-retries",
+          "2",
+          ...TW_HEADERS,
+        ]),
+        45_000,
+        "twitter:getVideoInfo",
+      );
+    } catch (error) {
+      const images = await imagesPromise;
+      if (!images.length) throw error;
+      return {
+        id: url.match(/status\/(\d+)/)?.[1] ?? "",
+        title: "X image post",
+        description: "",
+        thumbnail: images[0].previewPath,
+        duration: 0,
+        uploader: "Unknown",
+        uploader_id: "",
+        view_count: 0,
+        like_count: 0,
+        retweet_count: 0,
+        formats: [],
+        images,
+        media_type: "image",
+        hasNoVideo: true,
+      };
+    }
 
     let raw: any;
     try {
@@ -122,6 +152,8 @@ export class TwitterDownloaderService {
       }))
       .sort((a: TwitterFormat, b: TwitterFormat) => b.quality - a.quality);
 
+    const images = await imagesPromise;
+
     return {
       id: raw.id ?? "",
       title: raw.title ?? raw.description?.slice(0, 80) ?? "X Post",
@@ -134,6 +166,9 @@ export class TwitterDownloaderService {
       like_count: Number(raw.like_count) || 0,
       retweet_count: Number(raw.retweet_count) || 0,
       formats,
+      images,
+      media_type: formats.length ? "video" : "image",
+      hasNoVideo: formats.length === 0,
     };
   }
 

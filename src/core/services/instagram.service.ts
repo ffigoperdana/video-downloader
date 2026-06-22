@@ -1,4 +1,8 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import {
+  getSocialImageAssets,
+  type SocialImageAsset,
+} from "./social-image.service";
 
 export interface InstagramVideoInfo {
   id: string;
@@ -15,6 +19,7 @@ export interface InstagramVideoInfo {
   formats: InstagramFormat[];
   /** true if this post has no downloadable video (image-only post) */
   hasNoVideo: boolean;
+  images: SocialImageAsset[];
 }
 
 export interface InstagramEntry {
@@ -118,6 +123,7 @@ export class InstagramDownloaderService {
   async getVideoInfo(rawUrl: string): Promise<InstagramVideoInfo> {
     const url = cleanInstagramUrl(rawUrl);
     const mediaType = inferMediaType(url);
+    const imagesPromise = getSocialImageAssets(url, "instagram").catch(() => []);
 
     // Stories always require login — fail fast with a clear message
     if (mediaType === "story") {
@@ -126,20 +132,42 @@ export class InstagramDownloaderService {
       );
     }
 
-    const jsonStr = await withTimeout(
-      this.ytDlp.execPromise([
-        url,
-        "-J",
-        "--skip-download",
-        "--no-warnings",
-        "--no-check-certificate",
-        "--extractor-retries",
-        "2",
-        ...IG_HEADERS,
-      ]),
-      45_000,
-      "instagram:getVideoInfo",
-    );
+    let jsonStr: string;
+    try {
+      jsonStr = await withTimeout(
+        this.ytDlp.execPromise([
+          url,
+          "-J",
+          "--skip-download",
+          "--no-warnings",
+          "--no-check-certificate",
+          "--extractor-retries",
+          "2",
+          ...IG_HEADERS,
+        ]),
+        45_000,
+        "instagram:getVideoInfo",
+      );
+    } catch (error) {
+      const images = await imagesPromise;
+      if (!images.length) throw error;
+      return {
+        id: url.split("/").filter(Boolean).at(-1) ?? "",
+        title: "Instagram image post",
+        description: "",
+        thumbnail: images[0].previewPath,
+        duration: 0,
+        uploader: "Unknown",
+        uploader_id: "",
+        timestamp: 0,
+        like_count: 0,
+        media_type: mediaType,
+        entries: [],
+        formats: [],
+        hasNoVideo: true,
+        images,
+      };
+    }
 
     let raw: any;
     try {
@@ -178,6 +206,7 @@ export class InstagramDownloaderService {
 
       // Check if ANY entry has video
       const anyVideo = entries.some((e) => e.isVideo);
+      const images = await imagesPromise;
 
       return {
         id: raw.id ?? "",
@@ -195,6 +224,7 @@ export class InstagramDownloaderService {
         entries,
         formats: [],
         hasNoVideo: !anyVideo,
+        images,
       };
     }
 
@@ -205,6 +235,7 @@ export class InstagramDownloaderService {
       .sort((a: InstagramFormat, b: InstagramFormat) => b.quality - a.quality);
 
     const hasVideo = formats.length > 0;
+    const images = await imagesPromise;
 
     return {
       id: raw.id ?? "",
@@ -222,6 +253,7 @@ export class InstagramDownloaderService {
       entries: [],
       formats,
       hasNoVideo: !hasVideo,
+      images,
     };
   }
 

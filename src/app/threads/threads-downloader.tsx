@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
+import ImageMediaGallery from "@/components/image-media-gallery";
 import {
   getThreadsInfoAction,
   prepareThreadsDownloadAction,
@@ -77,7 +78,7 @@ export default function ThreadsDownloader() {
             Threads Downloader
           </h1>
           <p className="text-xs text-zinc-500">
-            Videos & images from threads.net
+            Videos & images from threads.com
           </p>
         </div>
       </div>
@@ -121,7 +122,7 @@ export default function ThreadsDownloader() {
       </div>
 
       <p className="text-xs text-zinc-700 text-center">
-        threads.net/@user/post/ID · threads.net/t/ID
+        threads.com/@user/post/SHORTCODE
       </p>
 
       {error && (
@@ -180,6 +181,8 @@ export default function ThreadsDownloader() {
               </div>
             </div>
           )}
+
+          <ImageMediaGallery images={info.images} platformLabel="Threads" />
 
           {/* Download */}
           {!info.hasNoVideo && (

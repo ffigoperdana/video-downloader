@@ -1,4 +1,8 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import {
+  getSocialImageAssets,
+  type SocialImageAsset,
+} from "./social-image.service";
 
 export interface ThreadsPostInfo {
   id: string;
@@ -11,6 +15,7 @@ export interface ThreadsPostInfo {
   formats: ThreadsFormat[];
   media_type: string;
   hasNoVideo: boolean;
+  images: SocialImageAsset[];
 }
 
 export interface ThreadsFormat {
@@ -29,14 +34,16 @@ const getBinaryPath = () => process.env.YTDLP_BINARY_PATH ?? "yt-dlp";
 export function cleanThreadsUrl(rawUrl: string): string {
   try {
     const u = new URL(rawUrl);
-    if (!u.hostname.includes("threads.net")) return rawUrl;
-    return `https://www.threads.net${u.pathname}`;
+    if (!/^(.+\.)?threads\.(net|com)$/.test(u.hostname)) return rawUrl;
+    return `https://www.threads.com${u.pathname}`;
   } catch {}
   return rawUrl;
 }
 
 export function isValidThreadsUrl(url: string): boolean {
-  return /threads\.net\/(@[\w.]+\/post\/\d+|t\/\d+)/.test(url);
+  return /threads\.(?:net|com)\/(@[\w.]+\/post\/[\w-]+|t\/[\w-]+)/.test(
+    url,
+  );
 }
 
 function withTimeout<T>(
@@ -76,21 +83,41 @@ export class ThreadsDownloaderService {
 
   async getVideoInfo(rawUrl: string): Promise<ThreadsPostInfo> {
     const url = cleanThreadsUrl(rawUrl);
+    const imagesPromise = getSocialImageAssets(url, "threads").catch(() => []);
 
-    const jsonStr = await withTimeout(
-      this.ytDlp.execPromise([
-        url,
-        "-J",
-        "--skip-download",
-        "--no-warnings",
-        "--no-check-certificate",
-        "--extractor-retries",
-        "3",
-        ...THREADS_HEADERS,
-      ]),
-      45_000,
-      "threads:getVideoInfo",
-    );
+    let jsonStr: string;
+    try {
+      jsonStr = await withTimeout(
+        this.ytDlp.execPromise([
+          url,
+          "-J",
+          "--skip-download",
+          "--no-warnings",
+          "--no-check-certificate",
+          "--extractor-retries",
+          "3",
+          ...THREADS_HEADERS,
+        ]),
+        45_000,
+        "threads:getVideoInfo",
+      );
+    } catch (error) {
+      const images = await imagesPromise;
+      if (!images.length) throw error;
+      return {
+        id: url.split("/post/")[1] ?? "",
+        title: "Threads image post",
+        description: "",
+        thumbnail: images[0].previewPath,
+        duration: 0,
+        uploader: "Unknown",
+        uploader_id: "",
+        formats: [],
+        media_type: "image",
+        hasNoVideo: true,
+        images,
+      };
+    }
 
     let raw: any;
     try {
@@ -118,6 +145,7 @@ export class ThreadsDownloaderService {
       }))
       .sort((a: ThreadsFormat, b: ThreadsFormat) => b.quality - a.quality);
 
+    const images = await imagesPromise;
     const hasNoVideo = formats.length === 0 && !raw.duration;
 
     return {
@@ -131,6 +159,7 @@ export class ThreadsDownloaderService {
       formats,
       media_type: hasNoVideo ? "image" : "video",
       hasNoVideo,
+      images,
     };
   }
 

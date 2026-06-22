@@ -4,10 +4,10 @@ import {
 } from "../threads.service";
 
 describe("cleanThreadsUrl", () => {
-  it("normalizes threads.net URLs", () => {
+  it("normalizes legacy threads.net URLs to threads.com", () => {
     expect(
       cleanThreadsUrl("https://www.threads.net/@user/post/1234567890"),
-    ).toBe("https://www.threads.net/@user/post/1234567890");
+    ).toBe("https://www.threads.com/@user/post/1234567890");
   });
 
   it("strips query params", () => {
@@ -15,7 +15,7 @@ describe("cleanThreadsUrl", () => {
       cleanThreadsUrl(
         "https://www.threads.net/@user/post/1234567890?ig_rid=abc",
       ),
-    ).toBe("https://www.threads.net/@user/post/1234567890");
+    ).toBe("https://www.threads.com/@user/post/1234567890");
   });
 
   it("returns non-threads URLs unchanged", () => {
@@ -35,6 +35,8 @@ describe("isValidThreadsUrl", () => {
     "https://www.threads.net/@user.name/post/1234567890",
     "https://www.threads.net/t/1234567890",
     "https://threads.net/t/1234567890",
+    "https://threads.com/@user/post/DZ4Nbh_EkCF",
+    "https://www.threads.com/@user.name/post/AbC-123_xyz",
   ])("validates %s", (url) => {
     expect(isValidThreadsUrl(url)).toBe(true);
   });

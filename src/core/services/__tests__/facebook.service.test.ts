@@ -6,8 +6,16 @@ import {
 describe("cleanFacebookUrl", () => {
   it("normalizes facebook.com URLs", () => {
     expect(cleanFacebookUrl("https://www.facebook.com/watch/?v=123")).toBe(
-      "https://www.facebook.com/watch/",
+      "https://www.facebook.com/watch/?v=123",
     );
+  });
+
+  it("drops tracking parameters but keeps post identifiers", () => {
+    expect(
+      cleanFacebookUrl(
+        "https://m.facebook.com/story.php?story_fbid=456&id=123&utm_source=test",
+      ),
+    ).toBe("https://www.facebook.com/story.php?story_fbid=456&id=123");
   });
 
   it("preserves fb.watch short links", () => {

@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
+import ImageMediaGallery from "@/components/image-media-gallery";
 import {
   getTikTokInfoAction,
   prepareTikTokDownloadAction,
@@ -182,7 +183,9 @@ export default function TikTokDownloader() {
           </div>
 
           {/* Variant selector */}
-          <div className="space-y-2">
+          <ImageMediaGallery images={info.images} platformLabel="TikTok" />
+
+          {!info.hasNoVideo && <div className="space-y-2">
             <p className="text-xs text-zinc-600 font-medium uppercase tracking-wider">
               Download as
             </p>
@@ -203,10 +206,10 @@ export default function TikTokDownloader() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Download */}
-          <button
+          {!info.hasNoVideo && <button
             onClick={handleDownload}
             disabled={loading}
             className="w-full py-3.5 rounded-2xl text-white font-syne font-600 text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-xl flex items-center justify-center gap-2"
@@ -228,7 +231,7 @@ export default function TikTokDownloader() {
                 Download {VARIANTS.find((v) => v.value === variant)?.label}
               </>
             )}
-          </button>
+          </button>}
         </div>
       )}
     </DownloaderShell>

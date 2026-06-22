@@ -1,4 +1,8 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import {
+  getSocialImageAssets,
+  type SocialImageAsset,
+} from "./social-image.service";
 
 export interface FacebookVideoInfo {
   id: string;
@@ -10,6 +14,8 @@ export interface FacebookVideoInfo {
   like_count: number;
   formats: FacebookFormat[];
   media_type: string;
+  images: SocialImageAsset[];
+  hasNoVideo: boolean;
 }
 
 export interface FacebookFormat {
@@ -30,8 +36,12 @@ export function cleanFacebookUrl(rawUrl: string): string {
     const u = new URL(rawUrl);
     if (u.hostname === "fb.watch") return rawUrl;
     if (u.hostname.includes("facebook.com")) {
-      // Normalize: strip query params, keep path only
-      return `https://www.facebook.com${u.pathname}`;
+      const clean = new URL(`https://www.facebook.com${u.pathname}`);
+      for (const key of ["v", "story_fbid", "id", "fbid"]) {
+        const value = u.searchParams.get(key);
+        if (value) clean.searchParams.set(key, value);
+      }
+      return clean.toString();
     }
   } catch {}
   return rawUrl;
@@ -86,21 +96,41 @@ export class FacebookDownloaderService {
   async getVideoInfo(rawUrl: string): Promise<FacebookVideoInfo> {
     const url = cleanFacebookUrl(rawUrl);
     const mediaType = inferMediaType(url);
+    const imagesPromise = getSocialImageAssets(url, "facebook").catch(() => []);
 
-    const jsonStr = await withTimeout(
-      this.ytDlp.execPromise([
-        url,
-        "-J",
-        "--skip-download",
-        "--no-warnings",
-        "--no-check-certificate",
-        "--extractor-retries",
-        "2",
-        ...FB_HEADERS,
-      ]),
-      45_000,
-      "facebook:getVideoInfo",
-    );
+    let jsonStr: string;
+    try {
+      jsonStr = await withTimeout(
+        this.ytDlp.execPromise([
+          url,
+          "-J",
+          "--skip-download",
+          "--no-warnings",
+          "--no-check-certificate",
+          "--extractor-retries",
+          "2",
+          ...FB_HEADERS,
+        ]),
+        45_000,
+        "facebook:getVideoInfo",
+      );
+    } catch (error) {
+      const images = await imagesPromise;
+      if (!images.length) throw error;
+      return {
+        id: "",
+        title: "Facebook image post",
+        thumbnail: images[0].previewPath,
+        duration: 0,
+        uploader: "Unknown",
+        view_count: 0,
+        like_count: 0,
+        formats: [],
+        media_type: "image",
+        images,
+        hasNoVideo: true,
+      };
+    }
 
     let raw: any;
     try {
@@ -126,6 +156,8 @@ export class FacebookDownloaderService {
       }))
       .sort((a: FacebookFormat, b: FacebookFormat) => b.quality - a.quality);
 
+    const images = await imagesPromise;
+
     return {
       id: raw.id ?? "",
       title: raw.title ?? raw.description?.slice(0, 80) ?? "Facebook Video",
@@ -136,6 +168,8 @@ export class FacebookDownloaderService {
       like_count: Number(raw.like_count) || 0,
       formats,
       media_type: mediaType,
+      images,
+      hasNoVideo: formats.length === 0,
     };
   }
 

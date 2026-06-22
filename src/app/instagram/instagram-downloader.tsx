@@ -2,6 +2,7 @@
 import { useState, useTransition, useCallback } from "react";
 import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
+import ImageMediaGallery from "@/components/image-media-gallery";
 import BatchProgress from "@/components/batch-progress";
 import {
   getInstagramInfoAction,
@@ -261,6 +262,8 @@ export default function InstagramDownloader() {
               </div>
             </div>
           )}
+
+          <ImageMediaGallery images={info.images} platformLabel="Instagram" />
 
           {/* Single download */}
           {!isCarousel && !info.hasNoVideo && (

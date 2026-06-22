@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
+import ImageMediaGallery from "@/components/image-media-gallery";
 import {
   getTwitterInfoAction,
   prepareTwitterDownloadAction,
@@ -178,8 +179,10 @@ export default function TwitterDownloader() {
             </div>
           </div>
 
+          <ImageMediaGallery images={info.images} platformLabel="Twitter" />
+
           {/* Quality */}
-          <div className="space-y-2">
+          {!info.hasNoVideo && <div className="space-y-2">
             <p className="text-xs text-zinc-600 font-medium uppercase tracking-wider">
               Quality
             </p>
@@ -199,10 +202,10 @@ export default function TwitterDownloader() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Download */}
-          <button
+          {!info.hasNoVideo && <button
             onClick={handleDownload}
             disabled={loading}
             className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-sky-400 to-blue-500 text-white font-syne font-600 text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-xl shadow-sky-500/20 flex items-center justify-center gap-2"
@@ -223,7 +226,7 @@ export default function TwitterDownloader() {
                 Download {quality === "audio" ? "Audio" : quality}
               </>
             )}
-          </button>
+          </button>}
         </div>
       )}
     </DownloaderShell>

@@ -1,4 +1,8 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import {
+  getSocialImageAssets,
+  type SocialImageAsset,
+} from "./social-image.service";
 
 export interface TikTokVideoInfo {
   id: string;
@@ -10,6 +14,9 @@ export interface TikTokVideoInfo {
   view_count: number;
   like_count: number;
   formats: TikTokFormat[];
+  images: SocialImageAsset[];
+  media_type: "video" | "image";
+  hasNoVideo: boolean;
 }
 
 export interface TikTokFormat {
@@ -49,7 +56,7 @@ export function cleanTikTokUrl(rawUrl: string): string {
 }
 
 export function isValidTikTokUrl(url: string): boolean {
-  return /tiktok\.com\/([@\w.]+\/video\/\d+|v\/\d+)|vm\.tiktok\.com|vt\.tiktok\.com/.test(
+  return /tiktok\.com\/([@\w.]+\/(?:video|photo)\/\d+|v\/\d+)|vm\.tiktok\.com|vt\.tiktok\.com/.test(
     url,
   );
 }
@@ -91,23 +98,43 @@ export class TikTokDownloaderService {
    */
   async getVideoInfo(rawUrl: string): Promise<TikTokVideoInfo> {
     const url = cleanTikTokUrl(rawUrl);
+    const imagesPromise = getSocialImageAssets(url, "tiktok").catch(() => []);
 
-    const jsonStr = await withTimeout(
-      this.ytDlp.execPromise([
-        url,
-        "-J",
-        "--skip-download",
-        "--no-warnings",
-        "--no-check-certificate",
-        "--extractor-retries",
-        "2",
-        // TikTok sometimes needs a referer
-        "--add-header",
-        "Referer:https://www.tiktok.com/",
-      ]),
-      45_000,
-      "tiktok:getVideoInfo",
-    );
+    let jsonStr: string;
+    try {
+      jsonStr = await withTimeout(
+        this.ytDlp.execPromise([
+          url,
+          "-J",
+          "--skip-download",
+          "--no-warnings",
+          "--no-check-certificate",
+          "--extractor-retries",
+          "2",
+          "--add-header",
+          "Referer:https://www.tiktok.com/",
+        ]),
+        45_000,
+        "tiktok:getVideoInfo",
+      );
+    } catch (error) {
+      const images = await imagesPromise;
+      if (!images.length) throw error;
+      return {
+        id: url.match(/\/(?:photo|video)\/(\d+)/)?.[1] ?? "",
+        title: "TikTok image post",
+        thumbnail: images[0].previewPath,
+        duration: 0,
+        uploader: "Unknown",
+        uploader_id: "",
+        view_count: 0,
+        like_count: 0,
+        formats: [],
+        images,
+        media_type: "image",
+        hasNoVideo: true,
+      };
+    }
 
     let raw: any;
     try {
@@ -136,6 +163,8 @@ export class TikTokDownloaderService {
       }))
       .sort((a: TikTokFormat, b: TikTokFormat) => b.quality - a.quality);
 
+    const images = await imagesPromise;
+
     return {
       id: raw.id ?? "",
       title: raw.title ?? raw.description ?? "TikTok Video",
@@ -146,6 +175,9 @@ export class TikTokDownloaderService {
       view_count: Number(raw.view_count) || 0,
       like_count: Number(raw.like_count) || 0,
       formats,
+      images,
+      media_type: formats.length ? "video" : "image",
+      hasNoVideo: formats.length === 0,
     };
   }
 

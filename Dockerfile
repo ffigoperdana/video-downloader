@@ -36,7 +36,14 @@ RUN apk add --no-cache \
     ffmpeg \
     curl \
     ca-certificates \
-    python3
+    python3 \
+    py3-pip
+
+RUN python3 -m pip install \
+    --no-cache-dir \
+    --break-system-packages \
+    gallery-dl==1.32.4 \
+    && gallery-dl --version
 
 # Install yt-dlp as standalone binary
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
@@ -45,6 +52,7 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
     && yt-dlp --version
 
 ENV YTDLP_BINARY_PATH=/usr/local/bin/yt-dlp
+ENV GALLERY_DL_BINARY_PATH=/usr/bin/gallery-dl
 
 # Copy build output
 COPY --from=builder /app/package.json .
