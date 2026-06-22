@@ -1,6 +1,7 @@
 import {
   cleanFacebookUrl,
   isValidFacebookUrl,
+  resolveFacebookUrl,
 } from "@/core/services/facebook.service";
 
 describe("cleanFacebookUrl", () => {
@@ -31,6 +32,35 @@ describe("cleanFacebookUrl", () => {
 
   it("returns invalid URLs unchanged", () => {
     expect(cleanFacebookUrl("not a url")).toBe("not a url");
+  });
+});
+
+describe("resolveFacebookUrl", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("resolves a public share link to its canonical post", async () => {
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === "location"
+            ? "https://www.facebook.com/SonyAlphaID/posts/pfbid123?rdid=tracking"
+            : null,
+      },
+    } as Response);
+
+    await expect(
+      resolveFacebookUrl("https://www.facebook.com/share/p/1HJm22KFqR/"),
+    ).resolves.toBe(
+      "https://www.facebook.com/SonyAlphaID/posts/pfbid123",
+    );
+  });
+
+  it("does not request direct permalinks", async () => {
+    const fetchSpy = jest.spyOn(global, "fetch");
+    await expect(
+      resolveFacebookUrl("https://www.facebook.com/user/posts/123"),
+    ).resolves.toBe("https://www.facebook.com/user/posts/123");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 

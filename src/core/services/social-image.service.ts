@@ -361,10 +361,13 @@ export function extractFacebookEmbeddedImageUrls(html: string): string[] {
 
 async function extractPageImages(url: string): Promise<ExtractedImage[]> {
   const cookie = getCookieHeader(url);
+  const isFacebook = /(^|\.)facebook\.com$/i.test(new URL(url).hostname);
   const response = await fetch(url, {
     headers: {
       "User-Agent":
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1",
+        isFacebook && !cookie
+          ? "facebookexternalhit/1.1"
+          : "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1",
       Accept: "text/html,application/xhtml+xml",
       "Accept-Language": "en-US,en;q=0.8",
       ...(cookie ? { Cookie: cookie } : {}),
@@ -386,7 +389,7 @@ async function extractPageImages(url: string): Promise<ExtractedImage[]> {
     if (content) urls.push(content);
   });
 
-  if (/(^|\.)facebook\.com$/i.test(new URL(url).hostname)) {
+  if (isFacebook) {
     const embedded = extractFacebookEmbeddedImageUrls(html);
     if (embedded.length > 1) return uniqueImagesWithDefault(embedded, "jpg");
     urls.push(...embedded);

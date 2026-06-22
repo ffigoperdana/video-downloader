@@ -5,6 +5,7 @@ import {
   FacebookVideoInfo,
   cleanFacebookUrl,
   isValidFacebookUrl,
+  resolveFacebookUrl,
 } from "@/core/services/facebook.service";
 
 export interface GetFacebookInfoResult {
@@ -20,9 +21,9 @@ export async function getFacebookInfoAction(
     return { success: false, error: "URL is required" };
   }
 
-  const url = cleanFacebookUrl(rawUrl.trim());
+  const cleanedUrl = cleanFacebookUrl(rawUrl.trim());
 
-  if (!isValidFacebookUrl(url)) {
+  if (!isValidFacebookUrl(cleanedUrl)) {
     return {
       success: false,
       error: "Invalid Facebook URL. Paste a facebook.com or fb.watch link.",
@@ -30,29 +31,33 @@ export async function getFacebookInfoAction(
   }
 
   try {
+    const url = await resolveFacebookUrl(cleanedUrl);
     const info = await facebookDownloaderService.getVideoInfo(url);
     return { success: true, data: info };
-  } catch (err: any) {
-    console.error("[getFacebookInfoAction]", err?.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "";
+    console.error("[getFacebookInfoAction]", message);
 
-    if (url.includes("/share/")) {
-      return {
-        success: false,
-        error:
-          "Facebook share links may require your login session. Open the post or photo and copy its direct permalink instead.",
-      };
-    }
-
-    if (err?.message?.includes("login") || err?.message?.includes("private")) {
+    if (message.includes("login") || message.includes("private")) {
       return {
         success: false,
         error: "This content is private or requires Facebook login.",
       };
     }
 
+    if (
+      /unsupported|cannot parse|no video|no media|not available/i.test(message)
+    ) {
+      return {
+        success: false,
+        error:
+          "Facebook resolved this public post, but did not expose its media to the server. Refresh SOCIAL_COOKIES_BASE64 and try again.",
+      };
+    }
+
     return {
       success: false,
-      error: err?.message ?? "Failed to fetch Facebook video info",
+      error: message || "Failed to fetch Facebook media",
     };
   }
 }
@@ -73,7 +78,20 @@ export async function prepareFacebookDownloadAction(
     return { success: false, error: "URL is required" };
   }
 
-  const url = cleanFacebookUrl(rawUrl.trim());
+  const cleanedUrl = cleanFacebookUrl(rawUrl.trim());
+  if (!isValidFacebookUrl(cleanedUrl)) {
+    return { success: false, error: "Invalid Facebook URL" };
+  }
+
+  let url: string;
+  try {
+    url = await resolveFacebookUrl(cleanedUrl);
+  } catch {
+    return {
+      success: false,
+      error: "Facebook could not resolve this share link. Try Fetch again.",
+    };
+  }
   const ext = quality === "audio" ? "mp3" : "mp4";
   const filename = facebookDownloaderService.buildSafeFilename(title, ext);
   const params = new URLSearchParams({ url, quality, filename });

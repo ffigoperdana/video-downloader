@@ -36,9 +36,9 @@ download history stored in the browser, and platform-specific error messages.
   require valid cookies and may still be unavailable.
 - YouTube may reject data-center IP addresses with `Sign in to confirm you are
   not a bot`. Configure `YTDLP_COOKIES_BASE64` when this happens.
-- Facebook share links can expose only the first carousel preview to logged-out
-  visitors. Use the direct post permalink and `SOCIAL_COOKIES_BASE64` to give
-  the extractor access to all public images visible to that account.
+- Facebook share links are resolved to their canonical post automatically, but
+  logged-out Facebook HTML may expose only the first carousel preview. Configure
+  `SOCIAL_COOKIES_BASE64` to expose all public images visible to that account.
 - TikTok photo CDN URLs are temporary. Click **Fetch** again if a preview has
   expired or fails to load.
 - If a Threads video download is interrupted, use the browser's **Resume**
@@ -240,9 +240,9 @@ dedicated account because cookies grant access to the active login session.
 
 ### Facebook returns only one image
 
-Use the direct post permalink instead of `/share/p/...`, confirm the post is
-visible to the cookie account, and configure `SOCIAL_COOKIES_BASE64`. Logged-out
-Facebook HTML often contains only the carousel cover.
+Share links such as `/share/p/...` are resolved automatically. Confirm the post
+is visible to the cookie account and configure `SOCIAL_COOKIES_BASE64`.
+Logged-out Facebook HTML often contains only the carousel cover.
 
 ### TikTok photo preview fails
 

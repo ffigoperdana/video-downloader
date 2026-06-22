@@ -52,6 +52,36 @@ export function isValidFacebookUrl(url: string): boolean {
   return validateFacebookUrl(url);
 }
 
+export async function resolveFacebookUrl(rawUrl: string): Promise<string> {
+  let url = cleanFacebookUrl(rawUrl);
+  if (!isValidFacebookUrl(url)) return url;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parsed = new URL(url);
+    const needsResolution =
+      parsed.hostname === "fb.watch" || parsed.pathname.startsWith("/share/");
+    if (!needsResolution) break;
+
+    const response = await fetch(url, {
+      method: "HEAD",
+      redirect: "manual",
+      headers: {
+        "User-Agent": "facebookexternalhit/1.1",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const location = response.headers.get("location");
+    if (!location) break;
+
+    const redirected = new URL(location, url).toString();
+    if (!isValidFacebookUrl(redirected)) break;
+    url = cleanFacebookUrl(redirected);
+  }
+
+  return url;
+}
+
 function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
@@ -95,7 +125,7 @@ export class FacebookDownloaderService {
   }
 
   async getVideoInfo(rawUrl: string): Promise<FacebookVideoInfo> {
-    const url = cleanFacebookUrl(rawUrl);
+    const url = await resolveFacebookUrl(rawUrl);
     const mediaType = inferMediaType(url);
     const imagesPromise = getSocialImageAssets(url, "facebook").catch(() => []);
 
