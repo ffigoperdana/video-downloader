@@ -1,7 +1,27 @@
 import {
   decodeSnapSaveResponse,
+  extractTikwmImageUrls,
   isSupportedPostUrl,
 } from "../social-image.service";
+
+describe("extractTikwmImageUrls", () => {
+  it("returns photo-mode image URLs from a successful response", () => {
+    expect(
+      extractTikwmImageUrls({
+        code: 0,
+        data: { images: ["https://cdn.example/1.jpeg", "https://cdn.example/2.jpeg"] },
+      }),
+    ).toEqual([
+      "https://cdn.example/1.jpeg",
+      "https://cdn.example/2.jpeg",
+    ]);
+  });
+
+  it("rejects unsuccessful or malformed responses", () => {
+    expect(extractTikwmImageUrls({ code: -1, data: { images: ["bad"] } })).toEqual([]);
+    expect(extractTikwmImageUrls({ code: 0, data: { images: "bad" } })).toEqual([]);
+  });
+});
 
 describe("decodeSnapSaveResponse", () => {
   it("decodes the packed response without evaluating it", () => {

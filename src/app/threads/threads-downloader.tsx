@@ -9,7 +9,7 @@ import {
   prepareThreadsDownloadAction,
 } from "@/actions/threads-downloader.action";
 import type { ThreadsPostInfo } from "@/core/services/threads.service";
-import { fmtDuration, fmtCount } from "@/core/utils/format-helpers";
+import { fmtDuration } from "@/core/utils/format-helpers";
 import { useDownloadHistory } from "@/core/hooks/use-download-history";
 
 export default function ThreadsDownloader() {
@@ -17,6 +17,7 @@ export default function ThreadsDownloader() {
   const [info, setInfo] = useState<ThreadsPostInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [format, setFormat] = useState<"video" | "audio">("video");
   const [isPending, start] = useTransition();
   const loading = isPending || downloading;
   const { addEntry } = useDownloadHistory();
@@ -36,7 +37,7 @@ export default function ThreadsDownloader() {
     setError(null);
     setDownloading(true);
     start(async () => {
-      const r = await prepareThreadsDownloadAction(url, info.title);
+      const r = await prepareThreadsDownloadAction(url, info.title, format);
       if (!r.success || !r.downloadPath) {
         setError(r.error ?? "Failed");
         setDownloading(false);
@@ -44,7 +45,7 @@ export default function ThreadsDownloader() {
       }
       const a = document.createElement("a");
       a.href = r.downloadPath;
-      a.download = r.filename ?? "threads.mp4";
+      a.download = r.filename ?? `threads.${format === "audio" ? "mp3" : "mp4"}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -53,8 +54,8 @@ export default function ThreadsDownloader() {
         platform: "threads",
         title: info.title,
         thumbnail: info.thumbnail,
-        quality: "best",
-        filename: r.filename ?? "threads.mp4",
+        quality: format === "audio" ? "audio" : "best",
+        filename: r.filename ?? `threads.${format === "audio" ? "mp3" : "mp4"}`,
         status: "completed",
       });
       setDownloading(false);
@@ -189,7 +190,29 @@ export default function ThreadsDownloader() {
 
           {/* Download */}
           {!info.hasNoVideo && (
-            <button
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ["video", "Video", "MP4"],
+                  ["audio", "Audio", "MP3"],
+                ] as const).map(([value, label, extension]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormat(value)}
+                    disabled={loading}
+                    className={`rounded-xl border px-3 py-2.5 text-center transition-colors ${
+                      format === value
+                        ? "border-zinc-300/50 bg-white/10 text-white"
+                        : "border-white/6 text-zinc-500 hover:border-white/15"
+                    }`}
+                  >
+                    <span className="block text-xs font-syne font-600">{label}</span>
+                    <span className="block text-[9px] opacity-60">{extension}</span>
+                  </button>
+                ))}
+              </div>
+              <button
               onClick={handleDownload}
               disabled={loading}
               className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-zinc-100 to-zinc-400 text-black font-syne font-600 text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-xl shadow-zinc-500/20 flex items-center justify-center gap-2"
@@ -207,10 +230,11 @@ export default function ThreadsDownloader() {
                   >
                     <path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-7 2h14v2H5v-2z" />
                   </svg>
-                  Download Video
+                  Download {format === "audio" ? "Audio" : "Video"}
                 </>
               )}
-            </button>
+              </button>
+            </div>
           )}
         </div>
       )}

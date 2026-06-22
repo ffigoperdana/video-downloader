@@ -152,7 +152,7 @@ pnpm start
 | `SOCIAL_COOKIES_BASE64` | empty | Base64-encoded Netscape `cookies.txt` for authenticated Instagram/Facebook/TikTok extraction |
 | `PORT`              | `3000`   | Server port                  |
 
-Public Threads URLs may use LoveThreads as a video extraction fallback, while public Facebook share URLs may use SnapSave when the local extractors cannot read them. Authentication cookies remain inside the application container and are never forwarded to these fallback services.
+Public Threads URLs may use LoveThreads as a video extraction fallback, public Facebook share URLs may use SnapSave, and TikTok photo posts may use TikWM when the local extractors cannot read them. Authentication cookies remain inside the application container and are never forwarded to these fallback services.
 
 If `yt-dlp` is in your system `PATH`, no configuration is needed.
 

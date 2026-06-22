@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { spawn } from "node:child_process";
+import { Readable } from "node:stream";
 import {
   extractThreadsMedia,
   isSupportedPostUrl,
@@ -6,12 +8,19 @@ import {
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const platform = searchParams.get("platform");
   const sourceUrl = searchParams.get("url");
   const index = Number(searchParams.get("index"));
+  const mode = searchParams.get("mode") === "audio" ? "audio" : "video";
+  const requestedFilename = searchParams.get("filename") ??
+    `threads.${mode === "audio" ? "mp3" : "mp4"}`;
+  const filename = requestedFilename
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "")
+    .slice(0, 100);
 
   if (
     platform !== "threads" ||
@@ -30,8 +39,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
     }
 
+    if (mode === "audio") {
+      const ffmpeg = spawn(
+        "ffmpeg",
+        [
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-headers",
+          `Referer: ${sourceUrl}\r\nUser-Agent: Mozilla/5.0\r\n`,
+          "-i",
+          video.remoteUrl,
+          "-vn",
+          "-codec:a",
+          "libmp3lame",
+          "-q:a",
+          "2",
+          "-f",
+          "mp3",
+          "pipe:1",
+        ],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      ffmpeg.stderr.on("data", (chunk) =>
+        console.error("[threads audio]", chunk.toString().trim()),
+      );
+
+      return new Response(
+        Readable.toWeb(ffmpeg.stdout) as ReadableStream<Uint8Array>,
+        {
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+          },
+        },
+      );
+    }
+
+    const range = request.headers.get("range");
     const upstream = await fetch(video.remoteUrl, {
-      headers: { "User-Agent": "Mozilla/5.0", Referer: sourceUrl },
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Referer: sourceUrl,
+        ...(range ? { Range: range } : {}),
+      },
       redirect: "follow",
       signal: AbortSignal.timeout(60_000),
     });
@@ -47,13 +100,26 @@ export async function GET(request: NextRequest) {
       throw new Error("Upstream response is not a video");
     }
 
+    const headers = new Headers({
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+    });
+    for (const name of [
+      "accept-ranges",
+      "content-length",
+      "content-range",
+      "etag",
+      "last-modified",
+    ]) {
+      const value = upstream.headers.get(name);
+      if (value) headers.set(name, value);
+    }
+
     return new Response(upstream.body, {
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": 'attachment; filename="threads-video.mp4"',
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff",
-      },
+      status: upstream.status,
+      headers,
     });
   } catch (error) {
     console.error("[/internal/media/video]", error);

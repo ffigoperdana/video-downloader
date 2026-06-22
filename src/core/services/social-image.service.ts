@@ -243,6 +243,38 @@ async function extractWithGalleryDl(url: string): Promise<ExtractedImage[]> {
   return uniqueImages(stdout.split(/\r?\n/));
 }
 
+interface TikwmPayload {
+  code?: number;
+  data?: {
+    images?: unknown;
+  };
+}
+
+export function extractTikwmImageUrls(payload: TikwmPayload): string[] {
+  if (payload.code !== 0 || !Array.isArray(payload.data?.images)) return [];
+  return payload.data.images.filter(
+    (image): image is string => typeof image === "string" && image.length > 0,
+  );
+}
+
+async function extractTikTokViaTikwm(sourceUrl: string): Promise<ExtractedImage[]> {
+  if (!/\/photo\/\d+\/?$/i.test(new URL(sourceUrl).pathname)) return [];
+
+  const response = await fetch("https://www.tikwm.com/api/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "Mozilla/5.0",
+    },
+    body: new URLSearchParams({ url: sourceUrl, hd: "1" }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) throw new Error(`TikTok fallback returned ${response.status}`);
+
+  const payload = (await response.json()) as TikwmPayload;
+  return uniqueImagesWithDefault(extractTikwmImageUrls(payload), "jpeg");
+}
+
 async function extractPageImages(url: string): Promise<ExtractedImage[]> {
   const response = await fetch(url, {
     headers: {
@@ -393,15 +425,16 @@ export async function extractSocialImages(
     extractWithGalleryDl(sourceUrl),
     extractPageImages(sourceUrl),
   ];
+  if (platform === "tiktok") tasks.push(extractTikTokViaTikwm(sourceUrl));
   if (platform === "facebook") tasks.push(extractFacebookViaSnapSave(sourceUrl));
 
-  const [galleryResult, pageResult, facebookResult] = await Promise.allSettled(tasks);
+  const [galleryResult, pageResult, fallbackResult] = await Promise.allSettled(tasks);
   const gallery = galleryResult.status === "fulfilled" ? galleryResult.value : [];
   const page = pageResult.status === "fulfilled" ? pageResult.value : [];
-  const facebook =
-    facebookResult?.status === "fulfilled" ? facebookResult.value : [];
+  const fallback =
+    fallbackResult?.status === "fulfilled" ? fallbackResult.value : [];
   return uniqueImages(
-    [...gallery, ...page, ...facebook].map((image) => image.remoteUrl),
+    [...gallery, ...page, ...fallback].map((image) => image.remoteUrl),
   );
 }
 

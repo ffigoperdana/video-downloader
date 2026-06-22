@@ -63,6 +63,7 @@ export interface PrepareThreadsDownloadResult {
 export async function prepareThreadsDownloadAction(
   rawUrl: string,
   title: string = "threads",
+  format: "video" | "audio" = "video",
 ): Promise<PrepareThreadsDownloadResult> {
   if (!rawUrl?.trim()) {
     return { success: false, error: "URL is required" };
@@ -72,16 +73,20 @@ export async function prepareThreadsDownloadAction(
   try {
     const media = await getThreadsMediaAssets(url);
     if (media.videos[0]) {
+      const extension = format === "audio" ? "mp3" : "mp4";
+      const filename = threadsDownloaderService.buildSafeFilename(title, extension);
+      const separator = media.videos[0].downloadPath.includes("?") ? "&" : "?";
       return {
         success: true,
-        downloadPath: media.videos[0].downloadPath,
-        filename: threadsDownloaderService.buildSafeFilename(title),
+        downloadPath: `${media.videos[0].downloadPath}${separator}${new URLSearchParams({ mode: format, filename }).toString()}`,
+        filename,
       };
     }
   } catch {}
 
-  const filename = threadsDownloaderService.buildSafeFilename(title);
-  const params = new URLSearchParams({ url, filename });
+  const extension = format === "audio" ? "mp3" : "mp4";
+  const filename = threadsDownloaderService.buildSafeFilename(title, extension);
+  const params = new URLSearchParams({ url, filename, format });
 
   return {
     success: true,

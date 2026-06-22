@@ -82,6 +82,7 @@ export class ThreadsDownloaderService {
 
   async getVideoInfo(rawUrl: string): Promise<ThreadsPostInfo> {
     const url = cleanThreadsUrl(rawUrl);
+    const urlUsername = new URL(url).pathname.match(/^\/@([^/]+)\/post\//)?.[1];
     const mediaPromise = getThreadsMediaAssets(url).catch(() => null);
 
     let jsonStr: string;
@@ -106,12 +107,14 @@ export class ThreadsDownloaderService {
       const hasVideo = media.videos.length > 0;
       return {
         id: url.split("/post/")[1] ?? "",
-        title: hasVideo ? "Threads video post" : "Threads image post",
+        title: hasVideo
+          ? `Threads video${urlUsername ? ` by @${urlUsername}` : ""}`
+          : `Threads image post${urlUsername ? ` by @${urlUsername}` : ""}`,
         description: "",
         thumbnail: media.images[0]?.previewPath ?? "",
         duration: 0,
-        uploader: "Unknown",
-        uploader_id: "",
+        uploader: urlUsername ?? "Threads",
+        uploader_id: urlUsername ?? "",
         formats: hasVideo
           ? [{ format_id: "direct", ext: "mp4", resolution: "best", fps: null, filesize: null, vcodec: "unknown", acodec: "unknown", quality: 1 }]
           : [],
@@ -158,8 +161,8 @@ export class ThreadsDownloaderService {
       description: raw.description ?? "",
       thumbnail: raw.thumbnail ?? "",
       duration: Number(raw.duration) || 0,
-      uploader: raw.uploader ?? raw.channel ?? "Unknown",
-      uploader_id: raw.uploader_id ?? "",
+      uploader: raw.uploader ?? raw.channel ?? urlUsername ?? "Threads",
+      uploader_id: raw.uploader_id ?? urlUsername ?? "",
       formats,
       media_type: hasNoVideo ? "image" : "video",
       hasNoVideo,
@@ -167,13 +170,21 @@ export class ThreadsDownloaderService {
     };
   }
 
-  createDownloadStream(rawUrl: string): NodeJS.ReadableStream {
+  createDownloadStream(
+    rawUrl: string,
+    format: "video" | "audio" = "video",
+  ): NodeJS.ReadableStream {
     const url = cleanThreadsUrl(rawUrl);
 
     return this.ytDlp.execStream([
       url,
       "-f",
-      "bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
+      format === "audio"
+        ? "bestaudio/best"
+        : "bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
+      ...(format === "audio"
+        ? ["-x", "--audio-format", "mp3", "--audio-quality", "2"]
+        : []),
       "-o",
       "-",
       "--no-warnings",
