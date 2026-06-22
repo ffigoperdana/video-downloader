@@ -1,7 +1,0 @@
-allowBuilds:
-  '@distube/yt-dlp': true
-  sharp: true
-  unrs-resolver: true
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
