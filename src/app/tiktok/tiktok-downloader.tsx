@@ -1,24 +1,14 @@
 "use client";
 import { useState, useTransition } from "react";
 import DownloaderShell from "@/components/downloader-shell";
+import Spinner from "@/components/ui/spinner";
 import {
   getTikTokInfoAction,
   prepareTikTokDownloadAction,
 } from "@/actions/tiktok-downloader.action";
 import type { TikTokVideoInfo } from "@/core/services/tiktok.service";
-
-function fmtDuration(s: number) {
-  const m = Math.floor(s / 60),
-    sec = Math.floor(s % 60);
-  return `${m}:${String(sec).padStart(2, "0")}`;
-}
-function fmtCount(n: number) {
-  return n >= 1e6
-    ? `${(n / 1e6).toFixed(1)}M`
-    : n >= 1e3
-      ? `${(n / 1e3).toFixed(1)}K`
-      : String(n);
-}
+import { fmtDuration, fmtCount } from "@/core/utils/format-helpers";
+import { useDownloadHistory } from "@/core/hooks/use-download-history";
 
 const VARIANTS = [
   {
@@ -31,26 +21,6 @@ const VARIANTS = [
   { value: "audio", icon: "🎧", label: "Audio Only", sub: "MP3" },
 ] as const;
 
-function Spinner() {
-  return (
-    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8v8z"
-      />
-    </svg>
-  );
-}
-
 export default function TikTokDownloader() {
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<TikTokVideoInfo | null>(null);
@@ -61,6 +31,7 @@ export default function TikTokDownloader() {
   const [downloading, setDownloading] = useState(false);
   const [isPending, start] = useTransition();
   const loading = isPending || downloading;
+  const { addEntry } = useDownloadHistory();
 
   const handleFetch = () => {
     setError(null);
@@ -89,6 +60,15 @@ export default function TikTokDownloader() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      addEntry({
+        url,
+        platform: "tiktok",
+        title: info.title,
+        thumbnail: info.thumbnail,
+        quality: variant,
+        filename: r.filename ?? "tiktok.mp4",
+        status: "completed",
+      });
       setDownloading(false);
     });
   };

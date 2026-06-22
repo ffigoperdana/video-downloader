@@ -3,9 +3,9 @@ import Link from "next/link";
 import Navbar from "@/components/navbar";
 
 export const metadata: Metadata = {
-  title: "SaveIt — Free Video Downloader for YouTube, TikTok & Instagram",
+  title: "SaveIt — Free Video Downloader for YouTube, TikTok, Instagram, Facebook, X & Threads",
   description:
-    "Download videos from YouTube, TikTok and Instagram for free. No watermark, HD quality, no login required. The fastest online video downloader.",
+    "Download videos from YouTube, TikTok, Instagram, Facebook, X (Twitter) and Threads for free. No watermark, HD quality, no login required. Batch downloads, download history, PWA support.",
   alternates: { canonical: "https://saveit.app" },
 };
 
@@ -76,6 +76,72 @@ const PLATFORMS = [
       "Original quality",
     ],
   },
+  {
+    href: "/facebook",
+    name: "Facebook",
+    tagline: "Videos & Reels",
+    description:
+      "Download Facebook videos, reels, and stories. HD quality, fast and free.",
+    accent: "from-blue-500 to-blue-600",
+    border: "border-blue-500/20 hover:border-blue-500/50",
+    glow: "hover:shadow-blue-500/10",
+    bg: "from-blue-500/8 to-transparent",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+      </svg>
+    ),
+    features: [
+      "Videos & reels",
+      "HD quality",
+      "fb.watch links",
+      "Stories support",
+    ],
+  },
+  {
+    href: "/twitter",
+    name: "X",
+    tagline: "Videos & GIFs",
+    description:
+      "Download X (Twitter) videos, clips, and GIFs. Multiple quality options, fast and free.",
+    accent: "from-sky-400 to-blue-500",
+    border: "border-sky-500/20 hover:border-sky-500/50",
+    glow: "hover:shadow-sky-500/10",
+    bg: "from-sky-500/8 to-transparent",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+    ),
+    features: [
+      "X & Twitter posts",
+      "Multiple bitrates",
+      "GIF support",
+      "x.com + twitter.com",
+    ],
+  },
+  {
+    href: "/threads",
+    name: "Threads",
+    tagline: "Experimental",
+    description:
+      "Download videos and images from Threads (threads.net). Experimental support, free and fast.",
+    accent: "from-zinc-100 to-zinc-400",
+    border: "border-zinc-500/20 hover:border-zinc-400/50",
+    glow: "hover:shadow-zinc-500/10",
+    bg: "from-zinc-500/8 to-transparent",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white">
+        <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.59 12c.025 3.086.718 5.496 2.057 7.164 1.432 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.34-.776-.963-1.394-1.83-1.82-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.217-3.259-.785a4.96 4.96 0 01-2.039-2.696c-.196-.996-.164-2.068.093-3.15.304-1.267.87-2.374 1.674-3.273 1.058-1.183 2.527-1.977 4.186-2.164.942-.107 1.888-.059 2.79.14.863.193 1.65.536 2.326 1.01V9.63c0-.543.358-.905.882-.905h.044c.528 0 .887.362.887.905v4.09c0 .543-.358.905-.887.905h-2.41c-.528 0-.887-.362-.887-.905v-.798c-1.744 1.338-4.028 1.79-6.277 1.264-1.586-.376-2.839-1.23-3.57-2.482-.77-1.326-1.017-2.872-.713-4.482.398-2.1 1.626-3.875 3.5-5.126 1.753-1.179 3.855-1.687 5.962-1.444 2.284.265 4.35 1.334 5.892 3.045 1.34 1.488 2.148 3.378 2.358 5.485.088.88.076 1.745-.034 2.575.404.262.746.587 1.015.973.567.815.883 1.784.942 2.873.11 2.024-.536 3.756-1.86 5.01-1.45 1.373-3.51 2.164-6.35 2.324z" />
+      </svg>
+    ),
+    features: [
+      "Videos & images",
+      "thread.net links",
+      "Public posts",
+      "Experimental",
+    ],
+  },
 ];
 
 const BENEFITS = [
@@ -97,7 +163,7 @@ const BENEFITS = [
   {
     icon: "📱",
     title: "Works Everywhere",
-    body: "Mobile, tablet, desktop — the interface adapts perfectly. No app install needed, just your browser.",
+    body: "Mobile, tablet, desktop — the interface adapts perfectly. Install as a PWA for native-like experience.",
   },
   {
     icon: "🆓",
@@ -105,9 +171,19 @@ const BENEFITS = [
     body: "No account, no subscription, no credit card. Just paste the URL and hit download. Always.",
   },
   {
+    icon: "📥",
+    title: "Batch Downloads",
+    body: "Download multiple videos at once from Instagram carousels. Real-time progress tracking for each item.",
+  },
+  {
+    icon: "🕐",
+    title: "Download History",
+    body: "Your downloads are saved locally. Re-download past videos anytime — everything is organized by date.",
+  },
+  {
     icon: "🎯",
-    title: "High Resolution",
-    body: "Download YouTube in up to 1080p HD. Instagram and TikTok in original uploaded quality.",
+    title: "6 Platforms",
+    body: "YouTube, TikTok, Instagram, Facebook, X, and Threads — all major video platforms in one place.",
   },
 ];
 
@@ -115,7 +191,7 @@ const HOW_IT_WORKS = [
   {
     step: "01",
     title: "Copy the URL",
-    body: "Go to YouTube, TikTok, or Instagram and copy the link to any video or reel.",
+    body: "Go to any supported platform and copy the link to any video, reel, or post.",
   },
   {
     step: "02",
@@ -135,6 +211,10 @@ const FAQS = [
     a: "Yes, completely free. No sign-up, no subscription, no limits.",
   },
   {
+    q: "Which platforms are supported?",
+    a: "YouTube, TikTok, Instagram, Facebook, X (Twitter), and Threads. We're constantly working on improving support for all platforms.",
+  },
+  {
     q: "Can I download TikTok videos without watermark?",
     a: "Yes. SaveIt uses the original source file before TikTok applies the watermark overlay, giving you a completely clean video.",
   },
@@ -143,8 +223,12 @@ const FAQS = [
     a: "Up to 1080p Full HD. For resolutions ≤720p the download is near-instant via CDN. 1080p requires server-side merging of separate video and audio streams.",
   },
   {
+    q: "Can I download multiple videos at once?",
+    a: "Yes! Instagram carousel posts support batch downloading. Click 'Download All Videos' and each video downloads sequentially with real-time progress tracking.",
+  },
+  {
     q: "Does SaveIt work on mobile?",
-    a: "Yes. The site is fully responsive and works great on iOS and Android browsers.",
+    a: "Yes. The site is fully responsive and works great on iOS and Android browsers. You can also install it as a Progressive Web App (PWA) for a native-like experience.",
   },
   {
     q: "Can I download private Instagram posts?",
@@ -152,7 +236,7 @@ const FAQS = [
   },
   {
     q: "Do you store downloaded videos?",
-    a: "No. Videos are streamed directly to your browser and are never stored on our servers.",
+    a: "No. Videos are streamed directly to your browser and are never stored on our servers. Your download history is saved locally in your browser only.",
   },
 ];
 
@@ -198,7 +282,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="animate-fade-up delay-200 text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed font-light">
-            YouTube, TikTok, Instagram — save any video to your device, in full
+            YouTube, TikTok, Instagram, Facebook, X, Threads — save any video to your device, in full
             quality, completely free. No watermarks, no sign-up.
           </p>
 
@@ -237,7 +321,7 @@ export default function LandingPage() {
           {/* Stats row */}
           <div className="animate-fade-up delay-400 flex items-center justify-center gap-8 pt-4">
             {[
-              ["3 platforms", "supported"],
+              ["6 platforms", "supported"],
               ["1080p", "max quality"],
               ["0 seconds", "sign-up time"],
             ].map(([val, label]) => (
@@ -507,6 +591,24 @@ export default function LandingPage() {
               className="hover:text-zinc-400 transition-colors"
             >
               Instagram
+            </Link>
+            <Link
+              href="/facebook"
+              className="hover:text-zinc-400 transition-colors"
+            >
+              Facebook
+            </Link>
+            <Link
+              href="/twitter"
+              className="hover:text-zinc-400 transition-colors"
+            >
+              X
+            </Link>
+            <Link
+              href="/threads"
+              className="hover:text-zinc-400 transition-colors"
+            >
+              Threads
             </Link>
           </div>
         </div>

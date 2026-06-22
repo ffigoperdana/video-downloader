@@ -1,0 +1,163 @@
+import YTDlpWrap from "yt-dlp-wrap";
+
+export interface ThreadsPostInfo {
+  id: string;
+  title: string;
+  description: string;
+  thumbnail: string;
+  duration: number;
+  uploader: string;
+  uploader_id: string;
+  formats: ThreadsFormat[];
+  media_type: string;
+  hasNoVideo: boolean;
+}
+
+export interface ThreadsFormat {
+  format_id: string;
+  ext: string;
+  resolution: string;
+  fps: number | null;
+  filesize: number | null;
+  vcodec: string;
+  acodec: string;
+  quality: number;
+}
+
+const getBinaryPath = () => process.env.YTDLP_BINARY_PATH ?? "yt-dlp";
+
+export function cleanThreadsUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    if (!u.hostname.includes("threads.net")) return rawUrl;
+    return `https://www.threads.net${u.pathname}`;
+  } catch {}
+  return rawUrl;
+}
+
+export function isValidThreadsUrl(url: string): boolean {
+  return /threads\.net\/(@[\w.]+\/post\/\d+|t\/\d+)/.test(url);
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label: string,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms / 1000}s`)),
+      ms,
+    );
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+const THREADS_HEADERS = [
+  "--add-header",
+  "User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+];
+
+export class ThreadsDownloaderService {
+  private ytDlp: YTDlpWrap;
+
+  constructor() {
+    this.ytDlp = new YTDlpWrap(getBinaryPath());
+  }
+
+  async getVideoInfo(rawUrl: string): Promise<ThreadsPostInfo> {
+    const url = cleanThreadsUrl(rawUrl);
+
+    const jsonStr = await withTimeout(
+      this.ytDlp.execPromise([
+        url,
+        "-J",
+        "--skip-download",
+        "--no-warnings",
+        "--no-check-certificate",
+        "--extractor-retries",
+        "3",
+        ...THREADS_HEADERS,
+      ]),
+      45_000,
+      "threads:getVideoInfo",
+    );
+
+    let raw: any;
+    try {
+      raw = JSON.parse(jsonStr.trim());
+    } catch {
+      console.error("[threads:getVideoInfo] raw:", jsonStr.slice(0, 300));
+      throw new Error(
+        "Failed to parse yt-dlp output for Threads. This post may be unsupported or private.",
+      );
+    }
+
+    const formats: ThreadsFormat[] = (raw.formats ?? [])
+      .filter((f: any) => f.vcodec !== "none" || f.acodec !== "none")
+      .map((f: any) => ({
+        format_id: f.format_id,
+        ext: f.ext ?? "mp4",
+        resolution:
+          f.resolution ??
+          (f.width && f.height ? `${f.width}x${f.height}` : "unknown"),
+        fps: f.fps ?? null,
+        filesize: f.filesize ?? f.filesize_approx ?? null,
+        vcodec: f.vcodec ?? "none",
+        acodec: f.acodec ?? "none",
+        quality: f.quality ?? 0,
+      }))
+      .sort((a: ThreadsFormat, b: ThreadsFormat) => b.quality - a.quality);
+
+    const hasNoVideo = formats.length === 0 && !raw.duration;
+
+    return {
+      id: raw.id ?? "",
+      title: raw.title ?? raw.description?.slice(0, 80) ?? "Threads Post",
+      description: raw.description ?? "",
+      thumbnail: raw.thumbnail ?? "",
+      duration: Number(raw.duration) || 0,
+      uploader: raw.uploader ?? raw.channel ?? "Unknown",
+      uploader_id: raw.uploader_id ?? "",
+      formats,
+      media_type: hasNoVideo ? "image" : "video",
+      hasNoVideo,
+    };
+  }
+
+  createDownloadStream(rawUrl: string): NodeJS.ReadableStream {
+    const url = cleanThreadsUrl(rawUrl);
+
+    return this.ytDlp.execStream([
+      url,
+      "-f",
+      "bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
+      "-o",
+      "-",
+      "--no-warnings",
+      "--no-check-certificate",
+      "--extractor-retries",
+      "3",
+      ...THREADS_HEADERS,
+      "--add-header",
+      "Referer:https://www.threads.net/",
+    ]);
+  }
+
+  buildSafeFilename(title: string, ext: string = "mp4"): string {
+    const safe =
+      title.replace(/[<>:"/\\|?*\x00-\x1f#]/g, "").trim() || "threads";
+    return `${safe.slice(0, 80)}.${ext}`;
+  }
+}
+
+export const threadsDownloaderService = new ThreadsDownloaderService();

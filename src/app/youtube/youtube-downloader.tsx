@@ -1,33 +1,14 @@
 "use client";
 import { useState, useTransition } from "react";
 import DownloaderShell from "@/components/downloader-shell";
+import Spinner from "@/components/ui/spinner";
 import {
   getVideoInfoAction,
   prepareDownloadAction,
 } from "@/actions/youtube-downloader.action";
 import type { VideoInfo, VideoFormat } from "@/core/services/youtube.service";
-
-function fmtDuration(s: number) {
-  const h = Math.floor(s / 3600),
-    m = Math.floor((s % 3600) / 60),
-    sec = s % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
-    : `${m}:${String(sec).padStart(2, "0")}`;
-}
-function fmtBytes(b: number | null) {
-  if (!b) return null;
-  return b > 1048576
-    ? `${(b / 1048576).toFixed(0)}MB`
-    : `${(b / 1024).toFixed(0)}KB`;
-}
-function fmtCount(n: number) {
-  return n >= 1e6
-    ? `${(n / 1e6).toFixed(1)}M`
-    : n >= 1e3
-      ? `${(n / 1e3).toFixed(1)}K`
-      : String(n);
-}
+import { fmtDuration, fmtBytes, fmtCount } from "@/core/utils/format-helpers";
+import { useDownloadHistory } from "@/core/hooks/use-download-history";
 
 const QUALITY_PRESETS = [
   { value: "best", label: "Best", sub: "Auto", fast: true },
@@ -38,26 +19,6 @@ const QUALITY_PRESETS = [
   { value: "audio", label: "Audio", sub: "MP3", fast: true },
 ];
 
-function Spinner() {
-  return (
-    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8v8z"
-      />
-    </svg>
-  );
-}
-
 export default function YoutubeDownloader() {
   const [url, setUrl] = useState("");
   const [info, setInfo] = useState<VideoInfo | null>(null);
@@ -66,6 +27,7 @@ export default function YoutubeDownloader() {
   const [formatId, setFormatId] = useState<string | undefined>();
   const [downloading, setDownloading] = useState(false);
   const [isPending, start] = useTransition();
+  const { addEntry } = useDownloadHistory();
 
   const loading = isPending || downloading;
 
@@ -97,6 +59,15 @@ export default function YoutubeDownloader() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      addEntry({
+        url,
+        platform: "youtube",
+        title: info.title,
+        thumbnail: info.thumbnail,
+        quality,
+        filename: r.filename ?? "video.mp4",
+        status: "completed",
+      });
       setDownloading(false);
     });
   };

@@ -4,9 +4,10 @@ import Navbar from "./navbar";
 
 interface DownloaderShellProps {
   children: ReactNode;
-  accentClass: string; // e.g. "text-red-400"
-  glowClass: string; // e.g. "bg-red-600/5"
-  borderGlow: string; // e.g. "border-red-500/10"
+  accentClass: string;
+  glowClass: string;
+  borderGlow: string;
+  batchSlot?: ReactNode;
 }
 
 export default function DownloaderShell({
@@ -14,6 +15,7 @@ export default function DownloaderShell({
   accentClass,
   glowClass,
   borderGlow,
+  batchSlot,
 }: DownloaderShellProps) {
   return (
     <div className="min-h-screen bg-[#080808]">
@@ -34,9 +36,11 @@ export default function DownloaderShell({
         />
       </div>
 
-      <main className="relative z-10 pt-24 pb-16 px-4">
+      <main className="relative z-10 pt-24 pb-24 px-4">
         <div className="max-w-2xl mx-auto space-y-6">{children}</div>
       </main>
+
+      {batchSlot}
     </div>
   );
 }

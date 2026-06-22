@@ -1,0 +1,29 @@
+{
+  "name": "SaveIt — Video Downloader",
+  "short_name": "SaveIt",
+  "description": "Download videos from YouTube, TikTok, Instagram, Facebook, X, and Threads for free.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#080808",
+  "background_color": "#080808",
+  "orientation": "any",
+  "categories": ["utilities", "entertainment"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
