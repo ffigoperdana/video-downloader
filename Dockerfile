@@ -19,7 +19,10 @@ RUN node -e " \
   fs.writeFileSync('package.json', JSON.stringify(p, null, 2)); \
 "
 
-RUN pnpm install --frozen-lockfile --ignore-workspace || pnpm install --no-frozen-lockfile --ignore-workspace
+# Remove workspace config if present (pnpm 11 has no --ignore-workspace flag)
+RUN rm -f pnpm-workspace.yaml
+
+RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
 # Copy seluruh project
 COPY . .
@@ -31,6 +34,7 @@ RUN node -e " \
   delete p.workspaces; \
   fs.writeFileSync('package.json', JSON.stringify(p, null, 2)); \
 "
+RUN rm -f pnpm-workspace.yaml
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
