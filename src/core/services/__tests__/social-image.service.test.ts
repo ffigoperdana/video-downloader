@@ -1,8 +1,25 @@
 import {
   decodeSnapSaveResponse,
+  extractFacebookEmbeddedImageUrls,
   extractTikwmImageUrls,
   isSupportedPostUrl,
 } from "../social-image.service";
+
+describe("extractFacebookEmbeddedImageUrls", () => {
+  it("extracts and deduplicates large carousel photos", () => {
+    const html = [
+      '"image":{"height":1080,"uri":"https:\\/\\/scontent.example.fbcdn.net\\/v\\/t39.30808-6\\/photo-1.jpg?x=1\\u0026y=2","width":1080}',
+      '"viewer_image":{"height":720,"uri":"https:\\/\\/scontent.example.fbcdn.net\\/v\\/t39.30808-6\\/photo-1.jpg?variant=2","width":720}',
+      '"photo_image":{"height":900,"uri":"https:\\/\\/scontent.example.fbcdn.net\\/v\\/t39.30808-6\\/photo-2.jpg","width":1200}',
+      '"image":{"height":80,"uri":"https:\\/\\/scontent.example.fbcdn.net\\/v\\/t39.30808-1\\/avatar.jpg","width":80}',
+    ].join("");
+
+    expect(extractFacebookEmbeddedImageUrls(html)).toEqual([
+      "https://scontent.example.fbcdn.net/v/t39.30808-6/photo-1.jpg?variant=2",
+      "https://scontent.example.fbcdn.net/v/t39.30808-6/photo-2.jpg",
+    ]);
+  });
+});
 
 describe("extractTikwmImageUrls", () => {
   it("returns photo-mode image URLs from a successful response", () => {

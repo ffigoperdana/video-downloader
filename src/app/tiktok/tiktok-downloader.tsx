@@ -136,6 +136,14 @@ export default function TikTokDownloader() {
         tiktok.com/@user/video/... · /photo/... · vm.tiktok.com
       </p>
 
+      <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-pink-500/8 border border-pink-500/20 text-pink-300/80 text-xs leading-relaxed">
+        <span aria-hidden="true">i</span>
+        <span>
+          TikTok photo links use temporary image URLs. If a preview fails to
+          load, click Fetch again to refresh the image links.
+        </span>
+      </div>
+
       {error && (
         <UrlValidationError
           error={error}

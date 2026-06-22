@@ -93,6 +93,15 @@ export default function ThreadsDownloader() {
         </span>
       </div>
 
+      <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-zinc-500/8 border border-zinc-500/20 text-zinc-400 text-xs leading-relaxed">
+        <span aria-hidden="true">i</span>
+        <span>
+          If a video download is interrupted, use your browser&apos;s Resume
+          action. Threads video downloads support resume, so you do not need
+          to fetch the post again.
+        </span>
+      </div>
+
       {/* Input */}
       <div className="relative group">
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-zinc-400/10 to-zinc-300/10 opacity-0 group-focus-within:opacity-100 blur-xl transition-opacity pointer-events-none" />

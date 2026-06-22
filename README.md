@@ -1,188 +1,105 @@
 ---
-title: SaveIt Video Downloader
-emoji: 📥
+title: SaveIt Media Downloader
+emoji: "📥"
 colorFrom: blue
 colorTo: indigo
 sdk: docker
 pinned: false
 ---
 
-# SaveIt — Open Source Video Downloader
+# SaveIt Media Downloader
 
-**SaveIt** is a free, open-source web application for downloading videos from YouTube, TikTok, and Instagram — with more platforms on the way. Built with Next.js App Router, it uses `yt-dlp` under the hood to deliver fast, high-quality downloads with no watermarks and no registration required.
+SaveIt is a self-hosted web application for downloading public videos, audio,
+GIFs, and image posts from major social platforms. It uses Next.js server
+actions and streaming route handlers so media can be downloaded without being
+permanently stored by the application.
 
-> 🚧 **Platform status:** YouTube ✅ · TikTok ✅ · Instagram ✅ · Facebook 🔜 · Threads 🔜 · X/Twitter 🔜
+## Supported platforms
 
----
+| Platform | Video | Audio | Images | Notes |
+| --- | --- | --- | --- | --- |
+| YouTube | Up to 1080p, Shorts | MP3 | - | Some videos require YouTube cookies |
+| TikTok | No-watermark and original variants | MP3 | Photo posts and slideshows | Short links supported |
+| Instagram | Reels, feed video, IGTV | When available | Photos and carousels | Public posts; cookies improve reliability |
+| Facebook | Videos and Reels | MP3 | Image posts and multi-image posts | Direct permalinks and cookies are recommended |
+| X / Twitter | Videos and GIFs | When available | Image posts | Public posts only |
+| Threads | Video posts | MP3 | Image posts | Experimental; interrupted video downloads can be resumed |
 
-## Features
+The application also includes URL/platform validation, links to the correct
+downloader when a URL is pasted on the wrong page, responsive image previews,
+download history stored in the browser, and platform-specific error messages.
 
-- **YouTube** — Download up to 1080p HD, audio-only (MP3), Shorts. CDN-proxied for ≤720p (near-instant speed). 1080p uses server-side ffmpeg merge.
-- **TikTok** — Download without watermark, with watermark, or audio-only. Supports all regions and `vm.tiktok.com` short links.
-- **Instagram** — Download Reels, feed posts, IGTV, and carousel slides individually. Proxied thumbnails bypass CDN CORS restrictions.
-- **SEO-optimized** — Full Open Graph, Twitter Card, canonical URLs, and structured metadata on every page.
-- **Dark UI** — Clean, modern interface built with Tailwind CSS and shadcn/ui.
-- **Mobile-first** — Fully responsive, works great on iOS and Android browsers.
-- **Privacy-first** — No video storage, no URL logging, no tracking.
+## Important limitations
 
----
+- Platform extractors can break when a website changes its markup or API.
+- Private, deleted, region-blocked, age-restricted, or login-only content may
+  require valid cookies and may still be unavailable.
+- YouTube may reject data-center IP addresses with `Sign in to confirm you are
+  not a bot`. Configure `YTDLP_COOKIES_BASE64` when this happens.
+- Facebook share links can expose only the first carousel preview to logged-out
+  visitors. Use the direct post permalink and `SOCIAL_COOKIES_BASE64` to give
+  the extractor access to all public images visible to that account.
+- TikTok photo CDN URLs are temporary. Click **Fetch** again if a preview has
+  expired or fails to load.
+- If a Threads video download is interrupted, use the browser's **Resume**
+  action. The video proxy forwards HTTP Range requests.
 
-## Tech Stack
+## How extraction works
 
-| Layer           | Technology                                 |
-| --------------- | ------------------------------------------ |
-| Framework       | Next.js 14+ (App Router)                   |
-| Styling         | Tailwind CSS + shadcn/ui                   |
-| Fonts           | Syne + DM Sans (Google Fonts)              |
-| Video engine    | [yt-dlp](https://github.com/yt-dlp/yt-dlp) |
-| Merging         | ffmpeg (for 1080p YouTube)                 |
-| Runtime         | Node.js 20                                 |
-| Package manager | pnpm                                       |
+SaveIt uses several extraction paths because no single tool supports every
+media type:
 
----
+- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) extracts video and audio.
+- [`gallery-dl`](https://github.com/mikf/gallery-dl) extracts supported image
+  posts and carousels.
+- Open Graph and embedded page metadata provide additional image fallbacks.
+- `ffmpeg` merges YouTube streams and converts supported audio to MP3.
+- Cheerio parses fallback HTML responses.
 
-## Requirements
+When local extractors cannot read a public URL, the application may send that
+URL to these external extraction services:
 
-### Manual installation
+- TikTok photo posts: TikWM
+- Facebook public share links: SnapSave
+- Threads public posts: LoveThreads
 
-| Requirement | Version    | Notes                                  |
-| ----------- | ---------- | -------------------------------------- |
-| Node.js     | ≥ 20       |                                        |
-| pnpm        | 9.x        | `npm i -g pnpm`                        |
-| **yt-dlp**  | latest     | **Required** — see install below       |
-| **ffmpeg**  | any recent | **Required** — for 1080p YouTube merge |
+Authentication cookies remain inside the SaveIt container and are never
+forwarded to those fallback services. Do not use SaveIt for sensitive or
+private URLs unless you understand the privacy implications.
 
-### Docker
+## Tech stack
 
-- Docker ≥ 24
-- Docker Compose ≥ 2 (optional but recommended)
+| Component | Technology |
+| --- | --- |
+| Web framework | Next.js 16 App Router, React 19, TypeScript |
+| Styling | Tailwind CSS 4 |
+| Runtime | Node.js 22 Alpine |
+| Package manager | pnpm 11.3.0 |
+| Video extraction | yt-dlp |
+| Image extraction | gallery-dl, page metadata, Cheerio |
+| Media processing | ffmpeg |
+| Deployment | Docker, Docker Compose, Coolify |
 
-> yt-dlp and ffmpeg are automatically installed inside the Docker image — no manual setup needed.
+## Quick start with Docker Compose
 
----
-
-## Getting Started
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/abdulrdev-ar/video-downloader.git
-cd saveit
-```
-
-### 2. Install yt-dlp
-
-**Linux / macOS**
-
-```bash
-# via pip (recommended — always latest)
-pip install yt-dlp
-
-# or via curl (binary)
-sudo curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
-  -o /usr/local/bin/yt-dlp
-sudo chmod +x /usr/local/bin/yt-dlp
-```
-
-**Windows**
-
-```powershell
-# via winget
-winget install yt-dlp
-
-# or via pip
-pip install yt-dlp
-```
-
-### 3. Install ffmpeg
-
-**Linux (Ubuntu/Debian)**
+Docker is the recommended installation method because the image already
+contains `yt-dlp`, `gallery-dl`, `ffmpeg`, Python, and runtime dependencies.
 
 ```bash
-sudo apt install ffmpeg
-```
-
-**macOS**
-
-```bash
-brew install ffmpeg
-```
-
-**Windows**
-
-```powershell
-winget install ffmpeg
-```
-
-### 4. Verify installations
-
-```bash
-yt-dlp --version
-ffmpeg -version
-```
-
----
-
-## Running Manually
-
-```bash
-# Install dependencies
-pnpm install
-
-# Copy environment file
-cp .env.example .env.local
-# (edit .env.local if needed)
-
-# Development
-pnpm dev
-# → http://localhost:3000
-
-# Production build
-pnpm build
-pnpm start
-# → http://localhost:3000
-```
-
-### Environment variables
-
-| Variable            | Default  | Description                  |
-| ------------------- | -------- | ---------------------------- |
-| `YTDLP_BINARY_PATH` | `yt-dlp` | Custom path to yt-dlp binary |
-| `YTDLP_COOKIES_BASE64` | empty | Base64-encoded Netscape `cookies.txt` for YouTube authentication |
-| `SOCIAL_COOKIES_BASE64` | empty | Base64-encoded Netscape `cookies.txt` for authenticated Instagram/Facebook/TikTok extraction |
-| `PORT`              | `3000`   | Server port                  |
-
-Public Threads URLs may use LoveThreads as a video extraction fallback, public Facebook share URLs may use SnapSave, and TikTok photo posts may use TikWM when the local extractors cannot read them. Authentication cookies remain inside the application container and are never forwarded to these fallback services.
-
-If `yt-dlp` is in your system `PATH`, no configuration is needed.
-
----
-
-## Running with Docker
-
-### Option A — Docker Compose (recommended)
-
-```bash
-# Build and start
-docker compose up -d
-
-# View logs
+git clone https://github.com/ffigoperdana/video-downloader.git
+cd video-downloader
+docker compose up -d --build
 docker compose logs -f
-
-# Stop
-docker compose down
 ```
 
-The Compose service exposes container port `7860` to its Docker network for
-reverse proxies such as Coolify. It does not bind a host port.
+The Compose service exposes container port `7860` only to its Docker network.
+It intentionally does not bind a host port, which avoids port conflicts on
+Coolify and other reverse-proxy platforms.
 
-### Option B — Docker CLI
+For plain Docker outside Coolify:
 
 ```bash
-# Build the image
 docker build -t saveit .
-
-# Run the container
 docker run -d \
   --name saveit \
   -p 8080:7860 \
@@ -190,106 +107,159 @@ docker run -d \
   saveit
 ```
 
-The Docker CLI example maps host port `8080` to container port `7860` for
-local access at **http://localhost:8080**.
+Open `http://localhost:8080`.
 
----
+## Coolify deployment
 
-## Project Structure
+1. Create a Docker Compose resource from this repository.
+2. Keep `docker-compose.yml` as the Compose file.
+3. Configure the public domain for service `saveit` on container port `7860`.
+4. Do not add a host mapping such as `8080:7860`; Coolify routes traffic over
+   its Docker network.
+5. Add cookie variables as secrets when authentication is required.
+6. Deploy. The included health check calls `http://localhost:7860/`.
 
-```
-src/
-├── actions/
-│   ├── youtube-downloader.action.ts # Server actions for YouTube
-│   ├── tiktok-downloader.action.ts  # Server actions for TikTok
-│   └── instagram-downloader.action.ts # Server actions for Instagram
-├── app/
-│   ├── page.tsx                    # Landing page (/)
-│   ├── layout.tsx                  # Root layout + global SEO metadata
-│   ├── globals.css                 # Global styles + custom utilities
-│   ├── youtube/
-│   │   ├── page.tsx                 # /youtube — SEO metadata
-│   │   └── youtube-downloader.tsx   # YouTube downloader UI
-│   ├── tiktok/
-│   │   ├── page.tsx                 # /tiktok — SEO metadata
-│   │   └── tiktok-downloader.tsx    # TikTok downloader UI
-│   ├── instagram/
-│   │   ├── page.tsx                 # /instagram — SEO metadata
-│   │   └── instagram-downloader.tsx # Instagram downloader UI
-│   └── internal/
-│       ├── download/               # Streaming route handlers
-│       │   ├── youtube/            # YouTube download handler
-│       │   ├── tiktok/             # TikTok download handler
-│       │   └── instagram/          # Instagram download handler
-│       └── preview/                # Thumbnail proxy for Instagram
-│           └── instagram/          # Instagram thumbnail proxy
-├── core/
-│   ├── services/
-│   │   ├── youtube.service.ts      # YouTube service layer
-│   │   ├── tiktok.service.ts       # TikTok service layer
-│   │   └── instagram.service.ts    # Instagram service layer
-└── components/
-    ├── navbar.tsx                  # Shared navigation bar
-    └── downloader-shell.tsx        # Shared page layout wrapper
+The GitHub workflow in `.github/workflows/docker-ci.yml` validates Compose,
+builds the Docker image, starts it, and waits for the container health check.
+
+## Environment variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `PORT` | `7860` in Docker | Next.js listening port |
+| `YTDLP_BINARY_PATH` | `/usr/local/bin/yt-dlp` in Docker | Custom yt-dlp path |
+| `GALLERY_DL_BINARY_PATH` | `/usr/bin/gallery-dl` in Docker | Custom gallery-dl path |
+| `YTDLP_COOKIES_PATH` | empty | Netscape cookies file path for YouTube |
+| `YTDLP_COOKIES_BASE64` | empty | Base64 Netscape cookies for YouTube |
+| `GALLERY_DL_COOKIES_PATH` | empty | Netscape cookies file path for social platforms |
+| `SOCIAL_COOKIES_BASE64` | empty | Base64 Netscape cookies for Instagram, Facebook, and TikTok |
+
+### Creating cookie secrets on Windows
+
+Export cookies as Netscape `cookies.txt` using a local browser extension. Use
+a dedicated account and never commit the cookie file or Base64 value.
+
+Convert YouTube cookies to Base64 in PowerShell:
+
+```powershell
+[Convert]::ToBase64String(
+  [IO.File]::ReadAllBytes("$HOME\Downloads\youtube-cookies.txt")
+)
 ```
 
----
+Store the output as `YTDLP_COOKIES_BASE64` in Coolify.
 
-## Download Architecture
+To combine Instagram, Facebook, and TikTok cookies:
 
+```powershell
+$files = @(
+  "$HOME\Downloads\instagram-cookies.txt",
+  "$HOME\Downloads\facebook-cookies.txt",
+  "$HOME\Downloads\tiktok-cookies.txt"
+)
+
+$output = "$HOME\Downloads\social-cookies.txt"
+"# Netscape HTTP Cookie File" | Set-Content $output -Encoding ASCII
+
+foreach ($file in $files) {
+  Get-Content $file |
+    Where-Object {
+      $_.Trim() -ne "" -and
+      $_ -notmatch "^# Netscape HTTP Cookie File"
+    } |
+    Add-Content $output -Encoding ASCII
+}
+
+[Convert]::ToBase64String([IO.File]::ReadAllBytes($output))
 ```
-User clicks Download
-  → Server Action (controller)
-  → Service.getDirectUrls() — yt-dlp -g (~1-2s)
-  → Route Handler /internal/download/{platform}
 
-  ┌─ YouTube ≤720p  → CDN proxy  → full CDN speed ⚡
-  ├─ YouTube 1080p  → yt-dlp pipe + ffmpeg merge  (slower)
-  ├─ TikTok         → yt-dlp pipe (CDN URLs are session-bound)
-  └─ Instagram      → yt-dlp pipe
-```
+Store the output as `SOCIAL_COOKIES_BASE64`. Cookies expire and must be
+exported again periodically.
 
----
+## Local development
 
-## Roadmap
+Requirements:
 
-- [x] YouTube (up to 1080p, audio, shorts)
-- [x] TikTok (no watermark, audio)
-- [x] Instagram (reels, posts, carousels, IGTV)
-- [ ] Facebook (public videos and reels)
-- [ ] Threads (video posts)
-- [ ] X / Twitter (videos and GIFs)
-- [ ] Batch download
-- [ ] Download history (local storage)
-- [ ] Progress bar for large downloads
-- [ ] PWA support
-
----
-
-## Contributing
-
-Contributions are welcome! Please open an issue first to discuss what you'd like to change.
+- Node.js 22 or newer
+- pnpm 11
+- yt-dlp
+- gallery-dl
+- ffmpeg
 
 ```bash
-# Fork, clone, then:
-git checkout -b feature/platform-facebook
+pnpm install
 pnpm dev
 ```
 
----
+The development server runs at `http://localhost:3000` unless `PORT` is set.
 
-## Legal Notice
+Quality checks:
 
-SaveIt is intended for **personal use only**. Always respect:
+```bash
+pnpm test
+pnpm exec tsc --noEmit
+pnpm build
+```
 
-- Platform Terms of Service
-- Copyright laws in your jurisdiction
-- Content creators' rights
+## Media download architecture
 
-Do not use this tool to download and redistribute copyrighted content.
+```text
+Browser
+  -> platform Server Action validates and normalizes the URL
+  -> yt-dlp, gallery-dl, page metadata, or a public fallback extracts media
+  -> /internal/download/* streams video and audio
+  -> /internal/media/image proxies image previews and attachments
+  -> /internal/media/video proxies Threads video and supports HTTP Range
+  -> ffmpeg merges streams or converts supported audio to MP3
+```
 
----
+Media URLs from social CDNs are often signed and short-lived. The internal
+routes re-extract or proxy them so browser downloads receive the required
+headers without exposing authentication cookies.
 
-## License
+## Project layout
 
-MIT © SaveIt contributors
+```text
+.github/workflows/       Docker build and deployment checks
+src/actions/             Server actions for each platform
+src/app/                 Pages and internal streaming routes
+src/components/          Shared downloader and media UI
+src/core/hooks/          Download history and batch state
+src/core/services/       Platform extraction and streaming services
+src/core/utils/          URL validation and formatting helpers
+Dockerfile               Multi-stage production image
+docker-compose.yml       Coolify-friendly Compose service
+```
+
+## Troubleshooting
+
+### YouTube says the visitor is a bot
+
+Export fresh YouTube cookies and configure `YTDLP_COOKIES_BASE64`. Use a
+dedicated account because cookies grant access to the active login session.
+
+### Facebook returns only one image
+
+Use the direct post permalink instead of `/share/p/...`, confirm the post is
+visible to the cookie account, and configure `SOCIAL_COOKIES_BASE64`. Logged-out
+Facebook HTML often contains only the carousel cover.
+
+### TikTok photo preview fails
+
+Click **Fetch** again. TikTok signs image URLs and they can expire quickly.
+
+### Threads download is interrupted
+
+Choose **Resume** in the browser download manager. Starting from the beginning
+is usually unnecessary because the proxy supports byte-range requests.
+
+### Docker reports that a host port is already allocated
+
+Do not publish a fixed host port in Coolify. Keep Compose `expose: 7860` and
+let Coolify's reverse proxy route the domain to that container port.
+
+## Legal notice
+
+SaveIt is intended for personal use with content you are authorized to access
+and download. Respect platform terms, copyright law, privacy, and content
+creators' rights. The maintainers do not endorse unauthorized redistribution.

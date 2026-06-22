@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import * as cheerio from "cheerio";
 
 export type ImagePlatform =
@@ -40,19 +40,55 @@ const galleryDlPath = () =>
   process.env.GALLERY_DL_BINARY_PATH ?? "gallery-dl";
 let generatedSocialCookiesPath: string | null = null;
 
-function getGalleryCookieArgs(): string[] {
+function getSocialCookiePath(): string | null {
   const configuredPath = process.env.GALLERY_DL_COOKIES_PATH?.trim();
-  if (configuredPath) return ["--cookies", configuredPath];
+  if (configuredPath) return configuredPath;
 
   const encodedCookies = process.env.SOCIAL_COOKIES_BASE64?.trim();
-  if (!encodedCookies) return [];
+  if (!encodedCookies) return null;
   generatedSocialCookiesPath ??= "/tmp/social-cookies.txt";
   writeFileSync(
     generatedSocialCookiesPath,
     Buffer.from(encodedCookies, "base64"),
     { mode: 0o600 },
   );
-  return ["--cookies", generatedSocialCookiesPath];
+  return generatedSocialCookiesPath;
+}
+
+function getGalleryCookieArgs(): string[] {
+  const cookiePath = getSocialCookiePath();
+  return cookiePath ? ["--cookies", cookiePath] : [];
+}
+
+function getCookieHeader(rawUrl: string): string | null {
+  const cookiePath = getSocialCookiePath();
+  if (!cookiePath) return null;
+
+  const url = new URL(rawUrl);
+  const now = Math.floor(Date.now() / 1000);
+  const cookies: string[] = [];
+
+  for (const rawLine of readFileSync(cookiePath, "utf8").split(/\r?\n/)) {
+    const line = rawLine.startsWith("#HttpOnly_")
+      ? rawLine.slice("#HttpOnly_".length)
+      : rawLine;
+    if (!line || line.startsWith("#")) continue;
+
+    const [domain, , path, secure, expires, name, ...valueParts] =
+      line.split("\t");
+    if (!domain || !name) continue;
+    const normalizedDomain = domain.replace(/^\./, "").toLowerCase();
+    const hostname = url.hostname.toLowerCase();
+    if (hostname !== normalizedDomain && !hostname.endsWith(`.${normalizedDomain}`)) {
+      continue;
+    }
+    if (path && !url.pathname.startsWith(path)) continue;
+    if (secure === "TRUE" && url.protocol !== "https:") continue;
+    if (Number(expires) > 0 && Number(expires) < now) continue;
+    cookies.push(`${name}=${valueParts.join("\t")}`);
+  }
+
+  return cookies.length ? cookies.join("; ") : null;
 }
 
 const PLATFORM_HOSTS: Record<ImagePlatform, RegExp> = {
@@ -275,13 +311,63 @@ async function extractTikTokViaTikwm(sourceUrl: string): Promise<ExtractedImage[
   return uniqueImagesWithDefault(extractTikwmImageUrls(payload), "jpeg");
 }
 
+function decodeEmbeddedUrl(value: string): string {
+  try {
+    return JSON.parse(`"${value}"`);
+  } catch {
+    return value
+      .replaceAll("\\/", "/")
+      .replaceAll("\\u0025", "%")
+      .replaceAll("\\u0026", "&")
+      .replaceAll("&amp;", "&");
+  }
+}
+
+function isFacebookContentImage(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    if (!/(^|\.)(?:fbcdn\.net|facebook\.com)$/i.test(url.hostname)) return false;
+    return !/\/v\/t\d+\.\d+-1\//.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+export function extractFacebookEmbeddedImageUrls(html: string): string[] {
+  const urls: string[] = [];
+  const objectPattern =
+    /"(?:image|photo_image|viewer_image|full_screen_image|large_image)"\s*:\s*\{([^{}]{0,1600})\}/g;
+
+  for (const match of html.matchAll(objectPattern)) {
+    const body = match[1];
+    const urlMatch = body.match(/"(?:uri|url)"\s*:\s*"((?:\\.|[^"\\])+)"/);
+    if (!urlMatch) continue;
+    const width = Number(body.match(/"width"\s*:\s*(\d+)/)?.[1] ?? 0);
+    const height = Number(body.match(/"height"\s*:\s*(\d+)/)?.[1] ?? 0);
+    if (width > 0 && height > 0 && (width < 400 || height < 400)) continue;
+    const decoded = decodeEmbeddedUrl(urlMatch[1]);
+    if (isFacebookContentImage(decoded)) urls.push(decoded);
+  }
+
+  const byPath = new Map<string, string>();
+  for (const imageUrl of urls) {
+    try {
+      const parsed = new URL(imageUrl);
+      byPath.set(`${parsed.hostname}${parsed.pathname}`, imageUrl);
+    } catch {}
+  }
+  return [...byPath.values()];
+}
+
 async function extractPageImages(url: string): Promise<ExtractedImage[]> {
+  const cookie = getCookieHeader(url);
   const response = await fetch(url, {
     headers: {
       "User-Agent":
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1",
       Accept: "text/html,application/xhtml+xml",
       "Accept-Language": "en-US,en;q=0.8",
+      ...(cookie ? { Cookie: cookie } : {}),
     },
     redirect: "follow",
     signal: AbortSignal.timeout(20_000),
@@ -291,7 +377,8 @@ async function extractPageImages(url: string): Promise<ExtractedImage[]> {
     throw new Error(`Social page returned HTTP ${response.status}`);
   }
 
-  const $ = cheerio.load(await response.text());
+  const html = await response.text();
+  const $ = cheerio.load(html);
   const urls: string[] = [];
 
   $('meta[property="og:image"], meta[name="twitter:image"]').each((_, el) => {
@@ -299,7 +386,13 @@ async function extractPageImages(url: string): Promise<ExtractedImage[]> {
     if (content) urls.push(content);
   });
 
-  return uniqueImages(urls);
+  if (/(^|\.)facebook\.com$/i.test(new URL(url).hostname)) {
+    const embedded = extractFacebookEmbeddedImageUrls(html);
+    if (embedded.length > 1) return uniqueImagesWithDefault(embedded, "jpg");
+    urls.push(...embedded);
+  }
+
+  return uniqueImagesWithDefault(urls, "jpg");
 }
 
 async function extractThreadsViaLoveThreads(sourceUrl: string): Promise<{
