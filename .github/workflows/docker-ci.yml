@@ -43,7 +43,7 @@ jobs:
             echo "Health check $attempt/30: $status"
 
             if [ "$status" = "healthy" ]; then
-              curl --fail --silent --show-error http://127.0.0.1:8080/ > /dev/null
+              docker exec "$container_id" curl --fail --silent --show-error http://127.0.0.1:7860/ > /dev/null
               exit 0
             fi
 
