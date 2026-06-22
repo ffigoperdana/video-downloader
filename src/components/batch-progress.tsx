@@ -1,6 +1,7 @@
 "use client";
 import ProgressBar from "@/components/ui/progress-bar";
 import type { BatchItem } from "@/core/hooks/use-batch-download";
+import { fmtBytes } from "@/core/utils/format-helpers";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "text-zinc-500",
@@ -53,7 +54,7 @@ export default function BatchProgress({
         >
           <div className="flex items-center gap-3">
             <span className="text-sm font-syne font-600 text-white">
-              Batch Download
+              Downloads
             </span>
             <span className="text-xs text-zinc-500">
               {completed}/{total} completed
@@ -130,6 +131,7 @@ export default function BatchProgress({
                       <ProgressBar
                         value={item.progress}
                         accentClass="from-indigo-500 to-violet-600"
+                        indeterminate={!item.totalBytes}
                       />
                     </div>
                   )}
@@ -139,9 +141,11 @@ export default function BatchProgress({
                     </p>
                   )}
                 </div>
-                <span className="text-[10px] text-zinc-600 flex-shrink-0 w-8 text-right">
+                <span className="text-[10px] text-zinc-600 flex-shrink-0 w-14 text-right">
                   {item.status === "downloading"
-                    ? `${item.progress}%`
+                    ? item.totalBytes
+                      ? `${item.progress}%`
+                      : fmtBytes(item.receivedBytes ?? 0) ?? "..."
                     : item.status === "completed"
                       ? "✓"
                       : ""}

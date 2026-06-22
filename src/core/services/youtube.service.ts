@@ -65,6 +65,22 @@ function getYoutubeRuntimeArgs(): string[] {
   return ["--js-runtimes", "node"];
 }
 
+export interface YoutubePlaylistEntry {
+  id: string;
+  title: string;
+  url: string;
+  thumbnail: string;
+  duration: number;
+  uploader: string;
+}
+
+export interface YoutubePlaylistInfo {
+  id: string;
+  title: string;
+  uploader: string;
+  entries: YoutubePlaylistEntry[];
+}
+
 export function cleanUrl(rawUrl: string): string {
   try {
     const u = new URL(rawUrl);
@@ -75,6 +91,38 @@ export function cleanUrl(rawUrl: string): string {
     }
   } catch {}
   return rawUrl;
+}
+
+export function cleanYoutubeInputUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl);
+    const playlistId = url.searchParams.get("list");
+    const videoId = url.searchParams.get("v");
+    if (playlistId) {
+      const normalized = new URL(
+        videoId
+          ? "https://www.youtube.com/watch"
+          : "https://www.youtube.com/playlist",
+      );
+      if (videoId) normalized.searchParams.set("v", videoId);
+      normalized.searchParams.set("list", playlistId);
+      return normalized.toString();
+    }
+  } catch {}
+  return cleanUrl(rawUrl);
+}
+
+export function isYoutubePlaylistUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl);
+    return Boolean(
+      url.searchParams.get("list") &&
+        (url.hostname === "youtube.com" ||
+          url.hostname.endsWith(".youtube.com")),
+    );
+  } catch {
+    return false;
+  }
 }
 
 function withTimeout<T>(
@@ -114,7 +162,7 @@ function qualityToFormatArg(quality: string): string {
     case "360p":
       return "best[height<=360][ext=mp4]/best[height<=360]";
     case "audio":
-      return "bestaudio[ext=m4a]/bestaudio";
+      return "bestaudio/best";
     default: // "best"
       return "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]";
   }
@@ -183,6 +231,65 @@ export class YoutubeDownloaderService {
     };
   }
 
+  async getPlaylistInfo(rawUrl: string): Promise<YoutubePlaylistInfo> {
+    const url = cleanYoutubeInputUrl(rawUrl);
+    const jsonStr = await withTimeout(
+      this.ytDlp.execPromise([
+        url,
+        "--flat-playlist",
+        "--dump-single-json",
+        "--yes-playlist",
+        "--ignore-errors",
+        "--skip-download",
+        "--no-check-certificate",
+        "--no-warnings",
+        "--extractor-retries",
+        "2",
+        ...getYoutubeRuntimeArgs(),
+      ]),
+      120_000,
+      "getPlaylistInfo",
+    );
+
+    const raw = JSON.parse(jsonStr.trim()) as {
+      id?: string;
+      title?: string;
+      uploader?: string;
+      channel?: string;
+      entries?: Array<{
+        id?: string;
+        title?: string;
+        url?: string;
+        webpage_url?: string;
+        thumbnail?: string;
+        duration?: number;
+        uploader?: string;
+        channel?: string;
+      } | null>;
+    };
+
+    const entries = (raw.entries ?? [])
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry?.id))
+      .map((entry) => ({
+        id: entry.id!,
+        title: entry.title ?? "Untitled video",
+        url: `https://www.youtube.com/watch?v=${entry.id}`,
+        thumbnail:
+          entry.thumbnail ?? `https://i.ytimg.com/vi/${entry.id}/mqdefault.jpg`,
+        duration: Number(entry.duration) || 0,
+        uploader: entry.uploader ?? entry.channel ?? "Unknown",
+      }));
+
+    if (!entries.length) throw new Error("This playlist has no accessible videos");
+
+    return {
+      id: raw.id ?? new URL(url).searchParams.get("list") ?? "playlist",
+      title: raw.title ?? "YouTube Playlist",
+      uploader: raw.uploader ?? raw.channel ?? "Unknown",
+      entries,
+    };
+  }
+
   /**
    * Extract direct CDN URL(s) for the requested quality.
    *
@@ -197,7 +304,7 @@ export class YoutubeDownloaderService {
   ): Promise<DirectUrlResult> {
     const url = cleanUrl(rawUrl);
     const formatArg = qualityToFormatArg(quality);
-    const ext = quality === "audio" ? "m4a" : "mp4";
+    const ext = quality === "audio" ? "mp3" : "mp4";
 
     // -g prints the direct URL(s), one per line
     // For merged formats it prints 2 lines: video URL then audio URL
@@ -249,13 +356,17 @@ export class YoutubeDownloaderService {
     const url = cleanUrl(rawUrl);
     const formatArg = qualityToFormatArg(quality);
 
+    const audioArgs =
+      quality === "audio"
+        ? ["-x", "--audio-format", "mp3", "--audio-quality", "0"]
+        : ["--merge-output-format", "mp4"];
+
     return this.ytDlp.execStream([
       url,
       "-f",
       formatArg,
       "--no-playlist",
-      "--merge-output-format",
-      "mp4",
+      ...audioArgs,
       "-o",
       "-",
       ...getYoutubeRuntimeArgs(),

@@ -2,8 +2,14 @@
 
 import { useState, useEffect } from "react";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 export default function PwaInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -12,7 +18,7 @@ export default function PwaInstallPrompt() {
 
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
       setShow(true);
     };
 
@@ -63,15 +69,17 @@ export default function PwaInstallPrompt() {
               </button>
               <button
                 onClick={handleDismiss}
-                className="px-4 py-1.5 rounded-xl bg-white/5 text-zinc-500 text-xs font-medium hover:bg-white/8 transition-colors"
+                className="px-4 py-1.5 rounded-xl bg-white/5 text-zinc-300 text-xs font-medium hover:bg-white/10 transition-colors"
               >
                 Not now
               </button>
             </div>
           </div>
           <button
+            type="button"
             onClick={handleDismiss}
-            className="text-zinc-600 hover:text-zinc-400 transition-colors flex-shrink-0"
+            aria-label="Close install prompt"
+            className="text-zinc-400 hover:text-white transition-colors flex-shrink-0"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />

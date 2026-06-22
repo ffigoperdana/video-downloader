@@ -194,10 +194,16 @@ export class TwitterDownloaderService {
         formatArg = "best[ext=mp4]/bestvideo+bestaudio/best";
     }
 
+    const audioArgs =
+      quality === "audio"
+        ? ["-x", "--audio-format", "mp3", "--audio-quality", "0"]
+        : [];
+
     return this.ytDlp.execStream([
       url,
       "-f",
       formatArg,
+      ...audioArgs,
       "-o",
       "-",
       "--no-warnings",

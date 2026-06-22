@@ -245,6 +245,8 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#080808] overflow-x-hidden">
       <Navbar />
 
+      <main id="main-content">
+
       {/* ── HERO ── */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-20 pb-16">
         {/* Background orbs */}
@@ -303,11 +305,11 @@ export default function LandingPage() {
                   <div className="text-sm font-syne font-600 text-white">
                     {p.name}
                   </div>
-                  <div className="text-xs text-zinc-500">{p.tagline}</div>
+                  <div className="text-xs text-zinc-400">{p.tagline}</div>
                 </div>
                 <svg
                   viewBox="0 0 24 24"
-                  className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all ml-1"
+                  className="w-4 h-4 text-zinc-400 group-hover:text-white group-hover:translate-x-0.5 transition-all ml-1"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
@@ -329,14 +331,14 @@ export default function LandingPage() {
                 <div className="font-syne text-xl font-700 text-white">
                   {val}
                 </div>
-                <div className="text-xs text-zinc-600 mt-0.5">{label}</div>
+                <div className="text-xs text-zinc-400 mt-0.5">{label}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-zinc-700">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-zinc-400">
           <span className="text-xs">scroll</span>
           <div className="w-px h-8 bg-gradient-to-b from-zinc-700 to-transparent" />
         </div>
@@ -346,12 +348,12 @@ export default function LandingPage() {
       <section className="relative px-4 py-24" id="platforms">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16 space-y-3">
-            <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-600">
+            <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-400">
               Supported Platforms
             </p>
             <h2 className="font-syne text-3xl sm:text-4xl font-700 text-white">
               Every major platform,{" "}
-              <span className="text-zinc-500">covered.</span>
+              <span className="text-zinc-400">covered.</span>
             </h2>
           </div>
 
@@ -377,7 +379,7 @@ export default function LandingPage() {
                     </div>
                     <svg
                       viewBox="0 0 24 24"
-                      className="w-5 h-5 text-zinc-700 group-hover:text-zinc-400 group-hover:translate-x-0.5 transition-all"
+                      className="w-5 h-5 text-zinc-400 group-hover:text-white group-hover:translate-x-0.5 transition-all"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.5"
@@ -390,7 +392,7 @@ export default function LandingPage() {
                     <h3 className="font-syne text-xl font-700 text-white">
                       {p.name}
                     </h3>
-                    <p className="text-zinc-500 text-sm mt-1 leading-relaxed">
+                    <p className="text-zinc-400 text-sm mt-1 leading-relaxed">
                       {p.description}
                     </p>
                   </div>
@@ -422,11 +424,11 @@ export default function LandingPage() {
 
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16 space-y-3">
-            <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-600">
+            <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-400">
               Simple Process
             </p>
             <h2 className="font-syne text-3xl sm:text-4xl font-700 text-white">
-              Three steps, <span className="text-zinc-500">that's it.</span>
+              Three steps, <span className="text-zinc-400">that&apos;s it.</span>
             </h2>
           </div>
 
@@ -434,19 +436,19 @@ export default function LandingPage() {
             {/* Connector line (desktop) */}
             <div className="hidden sm:block absolute top-10 left-[calc(16.66%+1rem)] right-[calc(16.66%+1rem)] h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
-            {HOW_IT_WORKS.map((step, i) => (
+            {HOW_IT_WORKS.map((step) => (
               <div
                 key={step.step}
                 className="relative group text-center sm:text-left space-y-4 p-6 rounded-2xl glass hover:bg-white/4 transition-colors duration-300"
               >
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white/4 border border-white/8 font-syne font-800 text-2xl text-zinc-700 group-hover:text-zinc-400 transition-colors">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white/4 border border-white/8 font-syne font-800 text-2xl text-zinc-400 group-hover:text-white transition-colors">
                   {step.step}
                 </div>
                 <div>
                   <h3 className="font-syne font-600 text-white text-lg">
                     {step.title}
                   </h3>
-                  <p className="text-zinc-500 text-sm mt-1.5 leading-relaxed">
+                  <p className="text-zinc-400 text-sm mt-1.5 leading-relaxed">
                     {step.body}
                   </p>
                 </div>
@@ -460,24 +462,24 @@ export default function LandingPage() {
       <section className="px-4 py-24" id="features">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16 space-y-3">
-            <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-600">
+            <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-400">
               Why SaveIt
             </p>
             <h2 className="font-syne text-3xl sm:text-4xl font-700 text-white">
               Built different,{" "}
-              <span className="text-zinc-500">on purpose.</span>
+              <span className="text-zinc-400">on purpose.</span>
             </h2>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {BENEFITS.map((b, i) => (
+            {BENEFITS.map((b) => (
               <div
                 key={b.title}
                 className="group p-6 rounded-2xl border border-white/5 hover:border-white/10 bg-white/[0.02] hover:bg-white/[0.04] transition-all duration-300 space-y-3"
               >
                 <div className="text-3xl">{b.icon}</div>
                 <h3 className="font-syne font-600 text-white">{b.title}</h3>
-                <p className="text-zinc-500 text-sm leading-relaxed">
+                <p className="text-zinc-400 text-sm leading-relaxed">
                   {b.body}
                 </p>
               </div>
@@ -490,7 +492,7 @@ export default function LandingPage() {
       <section className="px-4 py-24" id="faq">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-16 space-y-3">
-            <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-600">
+            <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-400">
               FAQ
             </p>
             <h2 className="font-syne text-3xl sm:text-4xl font-700 text-white">
@@ -510,7 +512,7 @@ export default function LandingPage() {
                   </span>
                   <svg
                     viewBox="0 0 24 24"
-                    className="w-4 h-4 text-zinc-600 flex-shrink-0 group-open:rotate-45 transition-transform duration-200"
+                    className="w-4 h-4 text-zinc-400 flex-shrink-0 group-open:rotate-45 transition-transform duration-200"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -558,6 +560,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER ── */}
+      </main>
+
       <footer className="px-4 py-8 border-t border-white/5">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -570,10 +574,10 @@ export default function LandingPage() {
               SaveIt
             </span>
           </div>
-          <p className="text-xs text-zinc-700 text-center">
-            For personal use only. Respect copyright laws and creators' rights.
+          <p className="text-xs text-zinc-400 text-center">
+            For personal use only. Respect copyright laws and creators&apos; rights.
           </p>
-          <div className="flex items-center gap-4 text-xs text-zinc-700">
+          <div className="flex items-center gap-4 text-xs text-zinc-400">
             <Link
               href="/youtube"
               className="hover:text-zinc-400 transition-colors"

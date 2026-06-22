@@ -19,9 +19,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid YouTube URL" }, { status: 400 });
   }
 
-  const contentType = quality === "audio" ? "audio/mp4" : "video/mp4";
+  const contentType = quality === "audio" ? "audio/mpeg" : "video/mp4";
 
   try {
+    if (quality === "audio") {
+      const audioStream = youtubeDownloaderService.createMergedStream(url, quality);
+      const webStream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          audioStream.on("data", (chunk: Buffer) => controller.enqueue(chunk));
+          audioStream.on("end", () => controller.close());
+          audioStream.on("error", (error: Error) => controller.error(error));
+        },
+        cancel() {
+          const destroyable = audioStream as { destroy?: () => void };
+          destroyable.destroy?.();
+        },
+      });
+
+      return new Response(webStream, {
+        headers: {
+          "Content-Type": contentType,
+          "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+          "Transfer-Encoding": "chunked",
+        },
+      });
+    }
+
     const direct = await youtubeDownloaderService.getDirectUrls(url, quality);
 
     if (!direct.needsMerge && direct.singleUrl) {

@@ -14,6 +14,8 @@ describe("isValidYoutubeUrl", () => {
     "https://youtube.com/watch?v=dQw4w9WgXcQ",
     "https://youtu.be/dQw4w9WgXcQ",
     "https://www.youtube.com/shorts/dQw4w9WgXcQ",
+    "https://www.youtube.com/playlist?list=PL123_abc-XYZ",
+    "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ",
     "http://www.youtube.com/watch?v=dQw4w9WgXcQ",
   ])("validates %s", (url) => {
     expect(isValidYoutubeUrl(url)).toBe(true);

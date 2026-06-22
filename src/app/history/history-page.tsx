@@ -270,6 +270,7 @@ export default function HistoryPage() {
                       rel="noopener noreferrer"
                       className="p-2 rounded-xl hover:bg-white/5 text-zinc-500 hover:text-zinc-300 transition-colors"
                       title="Open original"
+                      aria-label={`Open original ${entry.title}`}
                     >
                       <svg
                         viewBox="0 0 24 24"
@@ -282,9 +283,11 @@ export default function HistoryPage() {
                       </svg>
                     </a>
                     <button
+                      type="button"
                       onClick={() => removeEntry(entry.id)}
                       className="p-2 rounded-xl hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-colors"
                       title="Remove"
+                      aria-label={`Remove ${entry.title} from history`}
                     >
                       <svg
                         viewBox="0 0 24 24"

@@ -220,10 +220,16 @@ export class TikTokDownloaderService {
           "h264_1080p_randomcover/h264_720p_randomcover/h264_540p_randomcover/h264_360p_randomcover/best[ext=mp4]/best";
     }
 
+    const audioArgs =
+      variant === "audio"
+        ? ["-x", "--audio-format", "mp3", "--audio-quality", "0"]
+        : [];
+
     return this.ytDlp.execStream([
       url,
       "-f",
       formatArg,
+      ...audioArgs,
       "-o",
       "-", // pipe to stdout
       "--no-warnings",

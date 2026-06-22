@@ -9,7 +9,7 @@ import {
   prepareFacebookDownloadAction,
 } from "@/actions/facebook-downloader.action";
 import type { FacebookVideoInfo } from "@/core/services/facebook.service";
-import { fmtDuration, fmtBytes, fmtCount } from "@/core/utils/format-helpers";
+import { fmtDuration, fmtCount } from "@/core/utils/format-helpers";
 import { useDownloadHistory } from "@/core/hooks/use-download-history";
 
 const QUALITY_PRESETS = [
@@ -74,8 +74,6 @@ export default function FacebookDownloader() {
     });
   };
 
-  const videoFormats = info?.formats.filter((f) => f.vcodec !== "none") ?? [];
-
   return (
     <DownloaderShell
       accentClass="text-blue-400"
@@ -132,6 +130,14 @@ export default function FacebookDownloader() {
       <p className="text-xs text-zinc-700 text-center">
         facebook.com · fb.watch · Public content only
       </p>
+
+      <div className="flex items-start gap-2 rounded-xl border border-blue-500/20 bg-blue-500/8 px-3 py-2 text-xs leading-relaxed text-blue-300/80">
+        <span aria-hidden="true">i</span>
+        <span>
+          Large Facebook images and carousel previews can take a little longer
+          to load. Keep this page open while the previews are being prepared.
+        </span>
+      </div>
 
       {error && (
         <UrlValidationError

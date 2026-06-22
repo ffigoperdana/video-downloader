@@ -5,6 +5,13 @@ import { renderHook, act } from "@testing-library/react";
 import { useBatchDownload } from "../use-batch-download";
 
 describe("useBatchDownload", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
   it("initializes with empty state", () => {
     const { result } = renderHook(() => useBatchDownload());
     expect(result.current.items).toEqual([]);
@@ -100,5 +107,52 @@ describe("useBatchDownload", () => {
       result.current.cancelAll();
     });
     // The cancel ref should be set - verified by no error thrown
+  });
+
+  it("starts an item immediately after it is queued and tracks progress", async () => {
+    const reader = {
+      read: jest
+        .fn()
+        .mockResolvedValueOnce({
+          done: false,
+          value: new Uint8Array([1, 2, 3]),
+        })
+        .mockResolvedValueOnce({ done: true }),
+      cancel: jest.fn(),
+    };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => "3" },
+      body: { getReader: () => reader },
+    });
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: jest.fn(() => "blob:test"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: jest.fn(),
+    });
+    jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation();
+
+    const { result } = renderHook(() => useBatchDownload());
+    await act(async () => {
+      result.current.addToQueue([
+        {
+          url: "https://example.com/video",
+          title: "Video",
+          filename: "video.mp4",
+          downloadPath: "/download",
+        },
+      ]);
+      await result.current.startBatch();
+    });
+
+    expect(result.current.items[0]).toMatchObject({
+      status: "completed",
+      progress: 100,
+      receivedBytes: 3,
+      totalBytes: 3,
+    });
   });
 });

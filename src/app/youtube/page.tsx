@@ -4,13 +4,14 @@ import YoutubeDownloader from "./youtube-downloader";
 export const metadata: Metadata = {
   title: "YouTube Video Downloader — HD 1080p, MP4, Audio",
   description:
-    "Download YouTube videos in up to 1080p HD. Supports MP4, audio-only, and Shorts. Free, fast, no login required.",
+    "Download YouTube videos, Shorts, playlists, and MP3 audio with sequential progress tracking.",
   keywords: [
     "youtube downloader",
     "download youtube video",
     "youtube to mp4",
     "youtube 1080p download",
     "youtube shorts download",
+    "youtube playlist downloader",
   ],
   alternates: { canonical: "https://saveit.app/youtube" },
   openGraph: {

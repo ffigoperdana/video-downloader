@@ -18,7 +18,7 @@ permanently stored by the application.
 
 | Platform | Video | Audio | Images | Notes |
 | --- | --- | --- | --- | --- |
-| YouTube | Up to 1080p, Shorts | MP3 | - | Some videos require YouTube cookies |
+| YouTube | Up to 1080p, Shorts, playlists | MP3 | - | Playlist items support sequential progress downloads |
 | TikTok | No-watermark and original variants | MP3 | Photo posts and slideshows | Short links supported |
 | Instagram | Reels, feed video, IGTV | When available | Photos and carousels | Public posts; cookies improve reliability |
 | Facebook | Videos and Reels | MP3 | Image posts and multi-image posts | Direct permalinks and cookies are recommended |
@@ -27,7 +27,8 @@ permanently stored by the application.
 
 The application also includes URL/platform validation, links to the correct
 downloader when a URL is pasted on the wrong page, responsive image previews,
-download history stored in the browser, and platform-specific error messages.
+download progress before browser save, sequential playlist queues, download
+history stored in the browser, and platform-specific error messages.
 
 ## Important limitations
 
@@ -43,6 +44,8 @@ download history stored in the browser, and platform-specific error messages.
   expired or fails to load.
 - If a Threads video download is interrupted, use the browser's **Resume**
   action. The video proxy forwards HTTP Range requests.
+- Progress downloads are assembled in browser memory before the save begins.
+  Very large files therefore require enough free memory in the browser tab.
 
 ## How extraction works
 

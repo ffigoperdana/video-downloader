@@ -34,6 +34,15 @@ export function isValidYoutubeUrl(rawUrl: string): boolean {
   }
   if (!matchesHost(url.hostname, ["youtube.com"])) return false;
 
+  const playlistId = url.searchParams.get("list");
+  if (
+    playlistId &&
+    /^[\w-]+$/.test(playlistId) &&
+    (url.pathname === "/playlist" || url.pathname === "/watch")
+  ) {
+    return true;
+  }
+
   const videoId = url.searchParams.get("v");
   if (url.pathname === "/watch" && videoId) return /^[\w-]{11}$/.test(videoId);
   return /^\/(?:shorts|embed|live)\/[\w-]{11}(?:\/|$)/.test(url.pathname);

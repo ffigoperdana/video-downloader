@@ -8,6 +8,8 @@ export interface BatchItem {
   title: string;
   status: "pending" | "downloading" | "completed" | "failed";
   progress: number;
+  receivedBytes?: number;
+  totalBytes?: number;
   error?: string;
   filename?: string;
   downloadPath?: string;
@@ -19,9 +21,20 @@ interface UseBatchDownloadOptions {
 
 export function useBatchDownload(options?: UseBatchDownloadOptions) {
   const [items, setItems] = useState<BatchItem[]>([]);
+  const itemsRef = useRef<BatchItem[]>([]);
   const [active, setActive] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const abortRef = useRef(false);
+
+  const updateItems = useCallback(
+    (updater: (current: BatchItem[]) => BatchItem[]) => {
+      const next = updater(itemsRef.current);
+      itemsRef.current = next;
+      setItems(next);
+      return next;
+    },
+    [],
+  );
 
   const addToQueue = useCallback(
     (newItems: Omit<BatchItem, "id" | "status" | "progress">[]) => {
@@ -31,9 +44,9 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
         status: "pending" as const,
         progress: 0,
       }));
-      setItems((prev) => [...prev, ...itemsWithIds]);
+      updateItems((prev) => [...prev, ...itemsWithIds]);
     },
-    [],
+    [updateItems],
   );
 
   const startBatch = useCallback(async () => {
@@ -41,21 +54,13 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
     setMinimized(false);
     abortRef.current = false;
 
-    setItems((prev) => {
+    updateItems((prev) => {
       const pending = prev.filter((i) => i.status === "pending");
       const done = prev.filter((i) => i.status !== "pending");
       return [...done, ...pending];
     });
 
-    const getPending = () =>
-      new Promise<BatchItem[]>((resolve) => {
-        setItems((current) => {
-          resolve(current);
-          return current;
-        });
-      });
-
-    let currentItems = await getPending();
+    let currentItems = itemsRef.current;
 
     while (currentItems.some((i) => i.status === "pending")) {
       if (abortRef.current) break;
@@ -65,15 +70,23 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
 
       const item = currentItems[nextIdx];
 
-      setItems((prev) =>
+      updateItems((prev) =>
         prev.map((i) =>
-          i.id === item.id ? { ...i, status: "downloading", progress: 0 } : i,
+          i.id === item.id
+            ? {
+                ...i,
+                status: "downloading",
+                progress: 0,
+                receivedBytes: 0,
+                totalBytes: undefined,
+              }
+            : i,
         ),
       );
 
       try {
         const response = await fetch(item.downloadPath!, {
-          signal: AbortSignal.timeout(300_000),
+          signal: AbortSignal.timeout(3_600_000),
         });
 
         if (!response.ok) {
@@ -81,6 +94,16 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
         }
 
         const contentLength = Number(response.headers.get("content-length"));
+        updateItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id
+              ? {
+                  ...i,
+                  totalBytes: contentLength > 0 ? contentLength : undefined,
+                }
+              : i,
+          ),
+        );
         const reader = response.body?.getReader();
         if (!reader) throw new Error("No response body");
 
@@ -103,15 +126,17 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
             ? Math.round((received / contentLength) * 100)
             : 0;
 
-          setItems((prev) =>
+          updateItems((prev) =>
             prev.map((i) =>
-              i.id === item.id ? { ...i, progress } : i,
+              i.id === item.id
+                ? { ...i, progress, receivedBytes: received }
+                : i,
             ),
           );
         }
 
         if (abortRef.current) {
-          setItems((prev) =>
+          updateItems((prev) =>
             prev.map((i) =>
               i.id === item.id
                 ? { ...i, status: "failed", error: "Cancelled" }
@@ -129,55 +154,70 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
 
-        setItems((prev) =>
+        updateItems((prev) =>
           prev.map((i) =>
-            i.id === item.id ? { ...i, status: "completed", progress: 100 } : i,
+            i.id === item.id
+              ? {
+                  ...i,
+                  status: "completed",
+                  progress: 100,
+                  receivedBytes: received,
+                }
+              : i,
           ),
         );
 
         options?.onComplete?.({ ...item, status: "completed", progress: 100 });
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (abortRef.current) break;
-        setItems((prev) =>
+        const message = err instanceof Error ? err.message : "Failed";
+        updateItems((prev) =>
           prev.map((i) =>
             i.id === item.id
-              ? { ...i, status: "failed", error: err?.message ?? "Failed" }
+              ? { ...i, status: "failed", error: message }
               : i,
           ),
         );
       }
 
-      currentItems = await getPending();
+      currentItems = itemsRef.current;
     }
 
     setActive(false);
-  }, [options]);
+  }, [options, updateItems]);
 
   const cancelAll = useCallback(() => {
     abortRef.current = true;
   }, []);
 
   const retryFailed = useCallback(() => {
-    setItems((prev) =>
+    updateItems((prev) =>
       prev.map((i) =>
         i.status === "failed"
-          ? { ...i, status: "pending", progress: 0, error: undefined }
+          ? {
+              ...i,
+              status: "pending",
+              progress: 0,
+              receivedBytes: 0,
+              totalBytes: undefined,
+              error: undefined,
+            }
           : i,
       ),
     );
     setActive(true);
     setTimeout(() => startBatch(), 0);
-  }, [startBatch]);
+  }, [startBatch, updateItems]);
 
   const clearCompleted = useCallback(() => {
-    setItems((prev) => prev.filter((i) => i.status !== "completed"));
-  }, []);
+    updateItems((prev) => prev.filter((i) => i.status !== "completed"));
+  }, [updateItems]);
 
   const removeItem = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-  }, []);
+    updateItems((prev) => prev.filter((i) => i.id !== id));
+  }, [updateItems]);
 
   const completed = items.filter((i) => i.status === "completed").length;
   const failed = items.filter((i) => i.status === "failed").length;

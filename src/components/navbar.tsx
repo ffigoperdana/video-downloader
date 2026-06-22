@@ -134,7 +134,11 @@ export default function Navbar() {
 
           {/* Mobile Menu Button */}
           <button
+            type="button"
             onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-navigation"
             className="md:hidden p-2 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -149,7 +153,10 @@ export default function Navbar() {
 
         {/* Mobile Dropdown */}
         {menuOpen && (
-          <div className="md:hidden glass rounded-2xl mt-2 p-2 border border-white/6 space-y-1">
+          <div
+            id="mobile-navigation"
+            className="md:hidden glass rounded-2xl mt-2 p-2 border border-white/6 space-y-1"
+          >
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
