@@ -35,6 +35,14 @@ export async function getFacebookInfoAction(
   } catch (err: any) {
     console.error("[getFacebookInfoAction]", err?.message);
 
+    if (url.includes("/share/")) {
+      return {
+        success: false,
+        error:
+          "Facebook share links may require your login session. Open the post or photo and copy its direct permalink instead.",
+      };
+    }
+
     if (err?.message?.includes("login") || err?.message?.includes("private")) {
       return {
         success: false,

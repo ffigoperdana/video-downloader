@@ -133,7 +133,7 @@ export default function TikTokDownloader() {
       </div>
 
       <p className="text-xs text-zinc-700 text-center">
-        tiktok.com/@user/video/... · vm.tiktok.com · vt.tiktok.com
+        tiktok.com/@user/video/... · /photo/... · vm.tiktok.com
       </p>
 
       {error && (

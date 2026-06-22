@@ -148,7 +148,11 @@ pnpm start
 | Variable            | Default  | Description                  |
 | ------------------- | -------- | ---------------------------- |
 | `YTDLP_BINARY_PATH` | `yt-dlp` | Custom path to yt-dlp binary |
+| `YTDLP_COOKIES_BASE64` | empty | Base64-encoded Netscape `cookies.txt` for YouTube authentication |
+| `SOCIAL_COOKIES_BASE64` | empty | Base64-encoded Netscape `cookies.txt` for authenticated Instagram/Facebook/TikTok extraction |
 | `PORT`              | `3000`   | Server port                  |
+
+Public Threads URLs may use LoveThreads as a video extraction fallback, while public Facebook share URLs may use SnapSave when the local extractors cannot read them. Authentication cookies remain inside the application container and are never forwarded to these fallback services.
 
 If `yt-dlp` is in your system `PATH`, no configuration is needed.
 

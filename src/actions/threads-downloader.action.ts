@@ -6,6 +6,7 @@ import {
   cleanThreadsUrl,
   isValidThreadsUrl,
 } from "@/core/services/threads.service";
+import { getThreadsMediaAssets } from "@/core/services/social-image.service";
 
 export interface GetThreadsInfoResult {
   success: boolean;
@@ -68,6 +69,17 @@ export async function prepareThreadsDownloadAction(
   }
 
   const url = cleanThreadsUrl(rawUrl.trim());
+  try {
+    const media = await getThreadsMediaAssets(url);
+    if (media.videos[0]) {
+      return {
+        success: true,
+        downloadPath: media.videos[0].downloadPath,
+        filename: threadsDownloaderService.buildSafeFilename(title),
+      };
+    }
+  } catch {}
+
   const filename = threadsDownloaderService.buildSafeFilename(title);
   const params = new URLSearchParams({ url, filename });
 

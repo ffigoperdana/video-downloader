@@ -1,4 +1,5 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import { writeFileSync } from "node:fs";
 
 export interface VideoInfo {
   id: string;
@@ -43,6 +44,26 @@ export interface DirectUrlResult {
 }
 
 const getBinaryPath = () => process.env.YTDLP_BINARY_PATH ?? "yt-dlp";
+
+let generatedCookiesPath: string | null = null;
+
+function getYoutubeRuntimeArgs(): string[] {
+  const configuredPath = process.env.YTDLP_COOKIES_PATH?.trim();
+  if (configuredPath) return ["--cookies", configuredPath, "--js-runtimes", "node"];
+
+  const encodedCookies = process.env.YTDLP_COOKIES_BASE64?.trim();
+  if (encodedCookies) {
+    generatedCookiesPath ??= "/tmp/youtube-cookies.txt";
+    writeFileSync(
+      generatedCookiesPath,
+      Buffer.from(encodedCookies, "base64"),
+      { mode: 0o600 },
+    );
+    return ["--cookies", generatedCookiesPath, "--js-runtimes", "node"];
+  }
+
+  return ["--js-runtimes", "node"];
+}
 
 export function cleanUrl(rawUrl: string): string {
   try {
@@ -119,6 +140,7 @@ export class YoutubeDownloaderService {
         "--no-warnings",
         "--extractor-retries",
         "2",
+        ...getYoutubeRuntimeArgs(),
       ]),
       45_000,
       "getVideoInfo",
@@ -188,6 +210,7 @@ export class YoutubeDownloaderService {
         "--no-playlist",
         "--no-warnings",
         "--no-check-certificate",
+        ...getYoutubeRuntimeArgs(),
       ]),
       20_000,
       "getDirectUrls",
@@ -235,6 +258,7 @@ export class YoutubeDownloaderService {
       "mp4",
       "-o",
       "-",
+      ...getYoutubeRuntimeArgs(),
     ]);
   }
 

@@ -157,7 +157,7 @@ export class FacebookDownloaderService {
       }))
       .sort((a: FacebookFormat, b: FacebookFormat) => b.quality - a.quality);
 
-    const images = await imagesPromise;
+    const images = formats.length ? [] : await imagesPromise;
 
     return {
       id: raw.id ?? "",

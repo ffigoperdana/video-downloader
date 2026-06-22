@@ -1,4 +1,25 @@
-import { isSupportedPostUrl } from "../social-image.service";
+import {
+  decodeSnapSaveResponse,
+  isSupportedPostUrl,
+} from "../social-image.service";
+
+describe("decodeSnapSaveResponse", () => {
+  it("decodes the packed response without evaluating it", () => {
+    const expected = '<div class="download">image</div>';
+    const alphabet = "abcdZefghi";
+    const shift = 41;
+    const encoded = [...expected]
+      .map((character) =>
+        (character.charCodeAt(0) + shift)
+          .toString(4)
+          .replace(/[0-3]/g, (digit) => alphabet[Number(digit)]),
+      )
+      .join(alphabet[4]);
+    const packed = `function x(){}("${encoded}",10,"${alphabet}",${shift},4,7))`;
+
+    expect(decodeSnapSaveResponse(packed)).toBe(expected);
+  });
+});
 
 describe("isSupportedPostUrl", () => {
   it.each([

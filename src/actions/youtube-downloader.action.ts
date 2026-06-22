@@ -44,6 +44,14 @@ export async function getVideoInfoAction(
     return { success: true, data: info };
   } catch (err: any) {
     console.error("[getVideoInfoAction]", err?.message);
+    const message = String(err?.message ?? "");
+    if (message.includes("Sign in to confirm")) {
+      return {
+        success: false,
+        error:
+          "YouTube requires authentication for this video. Configure YTDLP_COOKIES_BASE64 in Coolify using a Netscape cookies.txt export.",
+      };
+    }
     return {
       success: false,
       error: err?.message ?? "Failed to fetch video info",

@@ -1,7 +1,7 @@
 import YTDlpWrap from "yt-dlp-wrap";
 import { isValidThreadsUrl as validateThreadsUrl } from "@/core/utils/url-validators";
 import {
-  getSocialImageAssets,
+  getThreadsMediaAssets,
   type SocialImageAsset,
 } from "./social-image.service";
 
@@ -82,7 +82,7 @@ export class ThreadsDownloaderService {
 
   async getVideoInfo(rawUrl: string): Promise<ThreadsPostInfo> {
     const url = cleanThreadsUrl(rawUrl);
-    const imagesPromise = getSocialImageAssets(url, "threads").catch(() => []);
+    const mediaPromise = getThreadsMediaAssets(url).catch(() => null);
 
     let jsonStr: string;
     try {
@@ -101,20 +101,23 @@ export class ThreadsDownloaderService {
         "threads:getVideoInfo",
       );
     } catch (error) {
-      const images = await imagesPromise;
-      if (!images.length) throw error;
+      const media = await mediaPromise;
+      if (!media || (!media.images.length && !media.videos.length)) throw error;
+      const hasVideo = media.videos.length > 0;
       return {
         id: url.split("/post/")[1] ?? "",
-        title: "Threads image post",
+        title: hasVideo ? "Threads video post" : "Threads image post",
         description: "",
-        thumbnail: images[0].previewPath,
+        thumbnail: media.images[0]?.previewPath ?? "",
         duration: 0,
         uploader: "Unknown",
         uploader_id: "",
-        formats: [],
-        media_type: "image",
-        hasNoVideo: true,
-        images,
+        formats: hasVideo
+          ? [{ format_id: "direct", ext: "mp4", resolution: "best", fps: null, filesize: null, vcodec: "unknown", acodec: "unknown", quality: 1 }]
+          : [],
+        media_type: hasVideo ? "video" : "image",
+        hasNoVideo: !hasVideo,
+        images: hasVideo ? [] : media.images,
       };
     }
 
@@ -144,8 +147,10 @@ export class ThreadsDownloaderService {
       }))
       .sort((a: ThreadsFormat, b: ThreadsFormat) => b.quality - a.quality);
 
-    const images = await imagesPromise;
-    const hasNoVideo = formats.length === 0 && !raw.duration;
+    const media = await mediaPromise;
+    const hasDirectVideo = Boolean(media?.videos.length);
+    const images = hasDirectVideo ? [] : (media?.images ?? []);
+    const hasNoVideo = formats.length === 0 && !raw.duration && !hasDirectVideo;
 
     return {
       id: raw.id ?? "",

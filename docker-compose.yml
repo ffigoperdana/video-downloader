@@ -5,6 +5,9 @@ services:
       dockerfile: Dockerfile
     expose:
       - "7860"
+    environment:
+      YTDLP_COOKIES_BASE64: ${YTDLP_COOKIES_BASE64:-}
+      SOCIAL_COOKIES_BASE64: ${SOCIAL_COOKIES_BASE64:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7860/"]

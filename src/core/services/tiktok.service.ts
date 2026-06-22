@@ -162,7 +162,9 @@ export class TikTokDownloaderService {
       }))
       .sort((a: TikTokFormat, b: TikTokFormat) => b.quality - a.quality);
 
-    const images = await imagesPromise;
+    const hasVideo =
+      formats.length > 0 || Boolean(raw.url) || Number(raw.duration) > 0;
+    const images = hasVideo ? [] : await imagesPromise;
 
     return {
       id: raw.id ?? "",
@@ -175,8 +177,8 @@ export class TikTokDownloaderService {
       like_count: Number(raw.like_count) || 0,
       formats,
       images,
-      media_type: formats.length ? "video" : "image",
-      hasNoVideo: formats.length === 0,
+      media_type: hasVideo ? "video" : "image",
+      hasNoVideo: !hasVideo,
     };
   }
 
