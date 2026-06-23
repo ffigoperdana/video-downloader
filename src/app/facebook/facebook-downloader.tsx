@@ -4,6 +4,7 @@ import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
 import UrlValidationError from "@/components/url-validation-error";
 import ImageMediaGallery from "@/components/image-media-gallery";
+import BatchProgress from "@/components/batch-progress";
 import {
   getFacebookInfoAction,
   prepareFacebookDownloadAction,
@@ -11,6 +12,7 @@ import {
 import type { FacebookVideoInfo } from "@/core/services/facebook.service";
 import { fmtDuration, fmtCount } from "@/core/utils/format-helpers";
 import { useDownloadHistory } from "@/core/hooks/use-download-history";
+import { useBatchDownload } from "@/core/hooks/use-batch-download";
 
 const QUALITY_PRESETS = [
   { value: "best", label: "Best", sub: "Auto", fast: true },
@@ -27,8 +29,21 @@ export default function FacebookDownloader() {
   const [quality, setQuality] = useState("best");
   const [downloading, setDownloading] = useState(false);
   const [isPending, start] = useTransition();
-  const loading = isPending || downloading;
   const { addEntry } = useDownloadHistory();
+  const batch = useBatchDownload({
+    onComplete: (item) => {
+      addEntry({
+        url: item.url,
+        platform: "facebook",
+        title: item.title,
+        thumbnail: info?.thumbnail ?? "",
+        quality,
+        filename: item.filename ?? "facebook.mp4",
+        status: "completed",
+      });
+    },
+  });
+  const loading = isPending || downloading || batch.active;
 
   const handleFetch = () => {
     setError(null);
@@ -55,22 +70,14 @@ export default function FacebookDownloader() {
         setDownloading(false);
         return;
       }
-      const a = document.createElement("a");
-      a.href = r.downloadPath;
-      a.download = r.filename ?? "facebook.mp4";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      addEntry({
+      batch.addToQueue([{
         url,
-        platform: "facebook",
         title: info.title,
-        thumbnail: info.thumbnail,
-        quality,
         filename: r.filename ?? "facebook.mp4",
-        status: "completed",
-      });
+        downloadPath: r.downloadPath,
+      }]);
       setDownloading(false);
+      void batch.startBatch();
     });
   };
 
@@ -79,6 +86,20 @@ export default function FacebookDownloader() {
       accentClass="text-blue-400"
       glowClass="bg-blue-600/5"
       borderGlow="border-blue-500/10"
+      batchSlot={
+        <BatchProgress
+          items={batch.items}
+          active={batch.active}
+          minimized={batch.minimized}
+          onToggleMinimize={() => batch.setMinimized(!batch.minimized)}
+          onCancel={batch.cancelAll}
+          onRetryFailed={batch.retryFailed}
+          onClearCompleted={batch.clearCompleted}
+          completed={batch.completed}
+          failed={batch.failed}
+          total={batch.total}
+        />
+      }
     >
       {/* Header */}
       <div className="flex items-center gap-3">

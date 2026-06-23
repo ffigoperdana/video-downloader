@@ -34,7 +34,6 @@ export default function InstagramDownloader() {
     number | "single" | null
   >(null);
   const [isPending, start] = useTransition();
-  const loading = isPending || downloadingIdx !== null;
   const { addEntry } = useDownloadHistory();
   const batch = useBatchDownload({
     onComplete: (item) => {
@@ -49,6 +48,7 @@ export default function InstagramDownloader() {
       });
     },
   });
+  const loading = isPending || downloadingIdx !== null || batch.active;
 
   const handleFetch = () => {
     setError(null);
@@ -75,22 +75,14 @@ export default function InstagramDownloader() {
         setDownloadingIdx(null);
         return;
       }
-      const a = document.createElement("a");
-      a.href = r.downloadPath;
-      a.download = r.filename ?? "instagram.mp4";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      addEntry({
+      batch.addToQueue([{
         url,
-        platform: "instagram",
         title: title,
-        thumbnail: info.thumbnail,
-        quality: "best",
         filename: r.filename ?? "instagram.mp4",
-        status: "completed",
-      });
+        downloadPath: r.downloadPath,
+      }]);
       setDownloadingIdx(null);
+      void batch.startBatch();
     });
   };
 

@@ -448,7 +448,7 @@ async function extractThreadsViaLoveThreads(sourceUrl: string): Promise<{
   });
 
   return {
-    images: uniqueImages(imageUrls),
+    images: uniqueImagesWithDefault(imageUrls, "jpg"),
     videos: videoUrls.map((remoteUrl) => ({ remoteUrl, extension: "mp4" })),
   };
 }

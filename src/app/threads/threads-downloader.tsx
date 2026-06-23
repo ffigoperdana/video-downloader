@@ -4,6 +4,7 @@ import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
 import UrlValidationError from "@/components/url-validation-error";
 import ImageMediaGallery from "@/components/image-media-gallery";
+import BatchProgress from "@/components/batch-progress";
 import {
   getThreadsInfoAction,
   prepareThreadsDownloadAction,
@@ -11,6 +12,7 @@ import {
 import type { ThreadsPostInfo } from "@/core/services/threads.service";
 import { fmtDuration } from "@/core/utils/format-helpers";
 import { useDownloadHistory } from "@/core/hooks/use-download-history";
+import { useBatchDownload } from "@/core/hooks/use-batch-download";
 
 export default function ThreadsDownloader() {
   const [url, setUrl] = useState("");
@@ -19,8 +21,21 @@ export default function ThreadsDownloader() {
   const [downloading, setDownloading] = useState(false);
   const [format, setFormat] = useState<"video" | "audio">("video");
   const [isPending, start] = useTransition();
-  const loading = isPending || downloading;
   const { addEntry } = useDownloadHistory();
+  const batch = useBatchDownload({
+    onComplete: (item) => {
+      addEntry({
+        url: item.url,
+        platform: "threads",
+        title: item.title,
+        thumbnail: info?.thumbnail ?? "",
+        quality: format === "audio" ? "audio" : "best",
+        filename: item.filename ?? `threads.${format === "audio" ? "mp3" : "mp4"}`,
+        status: "completed",
+      });
+    },
+  });
+  const loading = isPending || downloading || batch.active;
 
   const handleFetch = () => {
     setError(null);
@@ -43,22 +58,14 @@ export default function ThreadsDownloader() {
         setDownloading(false);
         return;
       }
-      const a = document.createElement("a");
-      a.href = r.downloadPath;
-      a.download = r.filename ?? `threads.${format === "audio" ? "mp3" : "mp4"}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      addEntry({
+      batch.addToQueue([{
         url,
-        platform: "threads",
         title: info.title,
-        thumbnail: info.thumbnail,
-        quality: format === "audio" ? "audio" : "best",
         filename: r.filename ?? `threads.${format === "audio" ? "mp3" : "mp4"}`,
-        status: "completed",
-      });
+        downloadPath: r.downloadPath,
+      }]);
       setDownloading(false);
+      void batch.startBatch();
     });
   };
 
@@ -67,6 +74,20 @@ export default function ThreadsDownloader() {
       accentClass="text-zinc-300"
       glowClass="bg-zinc-600/5"
       borderGlow="border-zinc-500/10"
+      batchSlot={
+        <BatchProgress
+          items={batch.items}
+          active={batch.active}
+          minimized={batch.minimized}
+          onToggleMinimize={() => batch.setMinimized(!batch.minimized)}
+          onCancel={batch.cancelAll}
+          onRetryFailed={batch.retryFailed}
+          onClearCompleted={batch.clearCompleted}
+          completed={batch.completed}
+          failed={batch.failed}
+          total={batch.total}
+        />
+      }
     >
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -96,9 +117,8 @@ export default function ThreadsDownloader() {
       <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-zinc-500/8 border border-zinc-500/20 text-zinc-400 text-xs leading-relaxed">
         <span aria-hidden="true">i</span>
         <span>
-          If a video download is interrupted, use your browser&apos;s Resume
-          action. Threads video downloads support resume, so you do not need
-          to fetch the post again.
+          Threads video and audio downloads now show progress in this page.
+          If a download is interrupted, use Retry Failed in the progress panel.
         </span>
       </div>
 

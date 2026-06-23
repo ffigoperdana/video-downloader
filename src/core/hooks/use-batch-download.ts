@@ -13,6 +13,7 @@ export interface BatchItem {
   error?: string;
   filename?: string;
   downloadPath?: string;
+  serverJobId?: string;
 }
 
 interface UseBatchDownloadOptions {
@@ -25,6 +26,7 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
   const [active, setActive] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const abortRef = useRef(false);
+  const activeJobIdsRef = useRef<Set<string>>(new Set());
 
   const updateItems = useCallback(
     (updater: (current: BatchItem[]) => BatchItem[]) => {
@@ -84,58 +86,77 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
         ),
       );
 
+      let serverJobId: string | undefined;
       try {
-        const response = await fetch(item.downloadPath!, {
-          signal: AbortSignal.timeout(3_600_000),
+        const startResponse = await fetch("/internal/progress/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            downloadPath: item.downloadPath,
+            filename: item.filename ?? "download",
+            title: item.title,
+          }),
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+        if (!startResponse.ok) {
+          const payload = await startResponse.json().catch(() => ({}));
+          throw new Error(payload.error ?? `HTTP ${startResponse.status}`);
         }
 
-        const contentLength = Number(response.headers.get("content-length"));
+        const { job } = await startResponse.json();
+        if (!job?.id) throw new Error("Download job was not created");
+        const jobId = String(job.id);
+        serverJobId = jobId;
+        activeJobIdsRef.current.add(jobId);
         updateItems((prev) =>
           prev.map((i) =>
             i.id === item.id
               ? {
                   ...i,
-                  totalBytes: contentLength > 0 ? contentLength : undefined,
+                  serverJobId: jobId,
+                  totalBytes: job.totalBytes,
                 }
               : i,
           ),
         );
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error("No response body");
 
-        let received = 0;
-        const chunks: Uint8Array[] = [];
+        let latestJob = job;
 
-        while (true) {
-          if (abortRef.current) {
-            reader.cancel();
-            break;
-          }
+        while (!abortRef.current) {
+          await new Promise((resolve) => setTimeout(resolve, 700));
 
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          chunks.push(value);
-          received += value.length;
-
-          const progress = contentLength > 0
-            ? Math.round((received / contentLength) * 100)
-            : 0;
+          const statusResponse = await fetch(`/internal/progress/status?id=${jobId}`, {
+            cache: "no-store",
+          });
+          if (!statusResponse.ok) throw new Error(`HTTP ${statusResponse.status}`);
+          const statusPayload = await statusResponse.json();
+          latestJob = statusPayload.job;
 
           updateItems((prev) =>
             prev.map((i) =>
               i.id === item.id
-                ? { ...i, progress, receivedBytes: received }
+                ? {
+                    ...i,
+                    progress: latestJob.progress ?? 0,
+                    receivedBytes: latestJob.receivedBytes,
+                    totalBytes: latestJob.totalBytes,
+                  }
                 : i,
             ),
           );
+
+          if (latestJob.status === "completed") break;
+          if (latestJob.status === "failed" || latestJob.status === "cancelled") {
+            throw new Error(latestJob.error ?? latestJob.status);
+          }
         }
 
         if (abortRef.current) {
+          await fetch("/internal/progress/cancel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: jobId }),
+          }).catch(() => {});
           updateItems((prev) =>
             prev.map((i) =>
               i.id === item.id
@@ -146,15 +167,13 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
           break;
         }
 
-        const blob = new Blob(chunks as BlobPart[]);
-        const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = url;
+        a.href = `/internal/progress/file?id=${jobId}`;
         a.download = item.filename ?? "download.mp4";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        activeJobIdsRef.current.delete(jobId);
 
         updateItems((prev) =>
           prev.map((i) =>
@@ -163,7 +182,8 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
                   ...i,
                   status: "completed",
                   progress: 100,
-                  receivedBytes: received,
+                  receivedBytes: latestJob.receivedBytes,
+                  totalBytes: latestJob.totalBytes,
                 }
               : i,
           ),
@@ -171,6 +191,7 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
 
         options?.onComplete?.({ ...item, status: "completed", progress: 100 });
       } catch (err: unknown) {
+        if (serverJobId) activeJobIdsRef.current.delete(serverJobId);
         if (abortRef.current) break;
         const message = err instanceof Error ? err.message : "Failed";
         updateItems((prev) =>
@@ -190,6 +211,14 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
 
   const cancelAll = useCallback(() => {
     abortRef.current = true;
+    for (const id of activeJobIdsRef.current) {
+      void fetch("/internal/progress/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      }).catch(() => {});
+    }
+    activeJobIdsRef.current.clear();
   }, []);
 
   const retryFailed = useCallback(() => {

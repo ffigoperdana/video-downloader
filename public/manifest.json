@@ -1,8 +1,9 @@
 {
-  "name": "SaveIt — Video & Image Downloader",
+  "name": "SaveIt - Video & Image Downloader",
   "short_name": "SaveIt",
   "description": "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, and Threads.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#080808",
   "background_color": "#080808",
@@ -10,17 +11,19 @@
   "categories": ["utilities", "entertainment"],
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/icons/saveit-icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/saveit-icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/saveit-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

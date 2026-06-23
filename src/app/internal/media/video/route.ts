@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "node:child_process";
 import { Readable } from "node:stream";
 import {
+  createCompatibleMp4Stream,
+  nodeStreamToWebResponse,
+} from "@/core/server/media-compat";
+import {
   extractThreadsMedia,
   isSupportedPostUrl,
 } from "@/core/services/social-image.service";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
@@ -78,48 +82,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const range = request.headers.get("range");
-    const upstream = await fetch(video.remoteUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        Referer: sourceUrl,
-        ...(range ? { Range: range } : {}),
-      },
-      redirect: "follow",
-      signal: AbortSignal.timeout(60_000),
+    const outputStream = createCompatibleMp4Stream(video.remoteUrl, {
+      logPrefix: "threads",
+      inputHeaders: `Referer: ${sourceUrl}\r\nUser-Agent: Mozilla/5.0\r\n`,
     });
-    if (!upstream.ok || !upstream.body) {
-      throw new Error(`Video CDN returned HTTP ${upstream.status}`);
-    }
 
-    const contentType = upstream.headers.get("content-type") ?? "video/mp4";
-    if (
-      !contentType.toLowerCase().startsWith("video/") &&
-      contentType.toLowerCase() !== "application/octet-stream"
-    ) {
-      throw new Error("Upstream response is not a video");
-    }
-
-    const headers = new Headers({
-      "Content-Type": contentType,
+    return nodeStreamToWebResponse(outputStream, {
+      "Content-Type": "video/mp4",
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
-    });
-    for (const name of [
-      "accept-ranges",
-      "content-length",
-      "content-range",
-      "etag",
-      "last-modified",
-    ]) {
-      const value = upstream.headers.get(name);
-      if (value) headers.set(name, value);
-    }
-
-    return new Response(upstream.body, {
-      status: upstream.status,
-      headers,
     });
   } catch (error) {
     console.error("[/internal/media/video]", error);

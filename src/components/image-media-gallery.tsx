@@ -3,18 +3,23 @@
 import { useState } from "react";
 import type { SocialImageAsset } from "@/core/services/social-image.service";
 import Spinner from "@/components/ui/spinner";
+import BatchProgress from "@/components/batch-progress";
+import { useBatchDownload } from "@/core/hooks/use-batch-download";
 
 interface ImageMediaGalleryProps {
   images: SocialImageAsset[];
   platformLabel: string;
+  onQueueImageDownload?: (image: SocialImageAsset) => void;
 }
 
 function ImageCard({
   image,
   platformLabel,
+  onDownload,
 }: {
   image: SocialImageAsset;
   platformLabel: string;
+  onDownload: (image: SocialImageAsset) => void;
 }) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading",
@@ -45,16 +50,16 @@ function ImageCard({
           }`}
         />
       </div>
-      <a
-        href={image.downloadPath}
-        download={`${platformLabel.toLowerCase()}-${image.index + 1}.${image.extension}`}
+      <button
+        type="button"
+        onClick={() => onDownload(image)}
         className="flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-syne font-600 text-white bg-white/5 hover:bg-white/10 transition-colors"
       >
         <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
           <path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-7 2h14v2H5v-2z" />
         </svg>
         Download image {image.index + 1}
-      </a>
+      </button>
     </div>
   );
 }
@@ -62,11 +67,38 @@ function ImageCard({
 export default function ImageMediaGallery({
   images,
   platformLabel,
+  onQueueImageDownload,
 }: ImageMediaGalleryProps) {
+  const batch = useBatchDownload();
+
+  const queueImageDownload = (image: SocialImageAsset) => {
+    onQueueImageDownload?.(image);
+    batch.addToQueue([{
+      url: image.downloadPath,
+      title: `${platformLabel} image ${image.index + 1}`,
+      filename: `${platformLabel.toLowerCase()}-${image.index + 1}.${image.extension}`,
+      downloadPath: image.downloadPath,
+    }]);
+    void batch.startBatch();
+  };
+
   if (!images.length) return null;
 
   return (
     <div className="space-y-3">
+      <BatchProgress
+        items={batch.items}
+        active={batch.active}
+        minimized={batch.minimized}
+        onToggleMinimize={() => batch.setMinimized(!batch.minimized)}
+        onCancel={batch.cancelAll}
+        onRetryFailed={batch.retryFailed}
+        onClearCompleted={batch.clearCompleted}
+        completed={batch.completed}
+        failed={batch.failed}
+        total={batch.total}
+      />
+
       <div className="flex items-center justify-between">
         <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">
           Images
@@ -82,6 +114,7 @@ export default function ImageMediaGallery({
             key={image.index}
             image={image}
             platformLabel={platformLabel}
+            onDownload={queueImageDownload}
           />
         ))}
       </div>

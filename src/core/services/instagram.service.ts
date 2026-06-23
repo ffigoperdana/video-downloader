@@ -269,7 +269,7 @@ export class InstagramDownloaderService {
     const args = [
       url,
       "-f",
-      "bestvideo[ext=mp4]+bestaudio/best[ext=mp4]/best",
+      "best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/best[ext=mp4]/best",
       "-o",
       "-",
       "--no-warnings",

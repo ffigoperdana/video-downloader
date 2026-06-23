@@ -266,7 +266,7 @@ export default function YoutubeDownloader() {
           </button>
 
           <p className="text-[10px] leading-relaxed text-zinc-600">
-            Playlist downloads run one at a time. Files are assembled in the browser so progress can be shown before each save starts.
+            Playlist downloads run one at a time. Files are prepared on the server so progress can be shown before each save starts.
             Your browser may ask permission to save multiple files.
           </p>
 

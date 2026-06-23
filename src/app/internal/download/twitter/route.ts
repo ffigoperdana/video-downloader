@@ -3,9 +3,13 @@ import {
   twitterDownloaderService,
   isValidTwitterUrl,
 } from "@/core/services/twitter.service";
+import {
+  createCompatibleMp4Stream,
+  nodeStreamToWebResponse,
+} from "@/core/server/media-compat";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -28,27 +32,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const ytStream = twitterDownloaderService.createDownloadStream(url, quality);
+    const outputStream =
+      quality === "audio"
+        ? ytStream
+        : createCompatibleMp4Stream(ytStream, { logPrefix: "twitter" });
 
-    const webStream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        ytStream.on("data", (chunk: Buffer) => controller.enqueue(chunk));
-        ytStream.on("end", () => controller.close());
-        ytStream.on("error", (err: Error) => {
-          console.error("[twitter stream]", err.message);
-          controller.error(err);
-        });
-      },
-      cancel() {
-        if ("destroy" in ytStream) (ytStream as any).destroy();
-      },
-    });
-
-    return new Response(webStream, {
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
-        "Transfer-Encoding": "chunked",
-      },
+    return nodeStreamToWebResponse(outputStream, {
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+      "Transfer-Encoding": "chunked",
     });
   } catch (err: any) {
     console.error("[/internal/download/twitter]", err?.message);

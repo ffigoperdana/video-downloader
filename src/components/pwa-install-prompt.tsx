@@ -11,23 +11,44 @@ export default function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [show, setShow] = useState(false);
+  const [manualMode, setManualMode] = useState<"ios" | "generic" | null>(null);
 
   useEffect(() => {
     const dismissed = localStorage.getItem("saveit-pwa-dismissed");
     if (dismissed) return;
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+    if (isStandalone) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
+      setManualMode(null);
       setShow(true);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+
+    const fallbackTimer = window.setTimeout(() => {
+      const ua = window.navigator.userAgent;
+      const isIos = /iphone|ipad|ipod/i.test(ua);
+      const isMobile = isIos || /android/i.test(ua);
+      setManualMode(isIos ? "ios" : "generic");
+      if (isMobile) setShow(true);
+    }, 1800);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.clearTimeout(fallbackTimer);
+    };
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      setManualMode((mode) => mode ?? "generic");
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === "dismissed") {
@@ -58,14 +79,34 @@ export default function PwaInstallPrompt() {
               Install SaveIt
             </p>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Add to your home screen for quick access
+              {manualMode === "ios"
+                ? "On iPhone or iPad, open Share then Add to Home Screen."
+                : manualMode === "generic"
+                  ? "Open your browser menu and choose Install app or Add to Home Screen."
+                  : "Add to your home screen for quick access"}
             </p>
+            {manualMode && (
+              <ol className="mt-2 space-y-1 text-[11px] leading-relaxed text-zinc-400">
+                {manualMode === "ios" ? (
+                  <>
+                    <li>1. Tap the Share button in Safari.</li>
+                    <li>2. Choose Add to Home Screen.</li>
+                    <li>3. Tap Add.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>1. Open the browser menu.</li>
+                    <li>2. Choose Install app or Add to Home Screen.</li>
+                  </>
+                )}
+              </ol>
+            )}
             <div className="flex items-center gap-2 mt-3">
               <button
                 onClick={handleInstall}
                 className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-syne font-600 hover:opacity-90 transition-opacity"
               >
-                Install
+                {deferredPrompt ? "Install" : "How to install"}
               </button>
               <button
                 onClick={handleDismiss}

@@ -3,9 +3,13 @@ import {
   instagramDownloaderService,
   isValidInstagramUrl,
 } from "@/core/services/instagram.service";
+import {
+  createCompatibleMp4Stream,
+  nodeStreamToWebResponse,
+} from "@/core/server/media-compat";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 180;
+export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -30,27 +34,14 @@ export async function GET(request: NextRequest) {
       url,
       entryIndex,
     );
-
-    const webStream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        ytStream.on("data", (chunk: Buffer) => controller.enqueue(chunk));
-        ytStream.on("end", () => controller.close());
-        ytStream.on("error", (err: Error) => {
-          console.error("[instagram stream]", err.message);
-          controller.error(err);
-        });
-      },
-      cancel() {
-        if ("destroy" in ytStream) (ytStream as any).destroy();
-      },
+    const outputStream = createCompatibleMp4Stream(ytStream, {
+      logPrefix: "instagram",
     });
 
-    return new Response(webStream, {
-      headers: {
+    return nodeStreamToWebResponse(outputStream, {
         "Content-Type": "video/mp4",
         "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
         "Transfer-Encoding": "chunked",
-      },
     });
   } catch (err: any) {
     console.error("[/internal/download/instagram]", err?.message);

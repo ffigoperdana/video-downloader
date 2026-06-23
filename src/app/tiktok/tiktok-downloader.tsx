@@ -4,6 +4,7 @@ import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
 import UrlValidationError from "@/components/url-validation-error";
 import ImageMediaGallery from "@/components/image-media-gallery";
+import BatchProgress from "@/components/batch-progress";
 import {
   getTikTokInfoAction,
   prepareTikTokDownloadAction,
@@ -11,6 +12,7 @@ import {
 import type { TikTokVideoInfo } from "@/core/services/tiktok.service";
 import { fmtDuration, fmtCount } from "@/core/utils/format-helpers";
 import { useDownloadHistory } from "@/core/hooks/use-download-history";
+import { useBatchDownload } from "@/core/hooks/use-batch-download";
 
 const VARIANTS = [
   {
@@ -32,8 +34,21 @@ export default function TikTokDownloader() {
   );
   const [downloading, setDownloading] = useState(false);
   const [isPending, start] = useTransition();
-  const loading = isPending || downloading;
   const { addEntry } = useDownloadHistory();
+  const batch = useBatchDownload({
+    onComplete: (item) => {
+      addEntry({
+        url: item.url,
+        platform: "tiktok",
+        title: item.title,
+        thumbnail: info?.thumbnail ?? "",
+        quality: variant,
+        filename: item.filename ?? "tiktok.mp4",
+        status: "completed",
+      });
+    },
+  });
+  const loading = isPending || downloading || batch.active;
 
   const handleFetch = () => {
     setError(null);
@@ -56,22 +71,14 @@ export default function TikTokDownloader() {
         setDownloading(false);
         return;
       }
-      const a = document.createElement("a");
-      a.href = r.downloadPath;
-      a.download = r.filename ?? "tiktok.mp4";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      addEntry({
+      batch.addToQueue([{
         url,
-        platform: "tiktok",
         title: info.title,
-        thumbnail: info.thumbnail,
-        quality: variant,
         filename: r.filename ?? "tiktok.mp4",
-        status: "completed",
-      });
+        downloadPath: r.downloadPath,
+      }]);
       setDownloading(false);
+      void batch.startBatch();
     });
   };
 
@@ -80,6 +87,20 @@ export default function TikTokDownloader() {
       accentClass="text-pink-400"
       glowClass="bg-pink-600/5"
       borderGlow="border-pink-500/10"
+      batchSlot={
+        <BatchProgress
+          items={batch.items}
+          active={batch.active}
+          minimized={batch.minimized}
+          onToggleMinimize={() => batch.setMinimized(!batch.minimized)}
+          onCancel={batch.cancelAll}
+          onRetryFailed={batch.retryFailed}
+          onClearCompleted={batch.clearCompleted}
+          completed={batch.completed}
+          failed={batch.failed}
+          total={batch.total}
+        />
+      }
     >
       {/* Header */}
       <div className="flex items-center gap-3">

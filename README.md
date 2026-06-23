@@ -23,12 +23,15 @@ permanently stored by the application.
 | Instagram | Reels, feed video, IGTV | When available | Photos and carousels | Public posts; cookies improve reliability |
 | Facebook | Videos and Reels | MP3 | Image posts and multi-image posts | Direct permalinks and cookies are recommended |
 | X / Twitter | Videos and GIFs | When available | Image posts | Public posts only |
-| Threads | Video posts | MP3 | Image posts | Experimental; interrupted video downloads can be resumed |
+| Threads | Video posts | MP3 | Image posts | Experimental; use Retry Failed when an interrupted job needs another attempt |
 
 The application also includes URL/platform validation, links to the correct
 downloader when a URL is pasted on the wrong page, responsive image previews,
-download progress before browser save, sequential playlist queues, download
-history stored in the browser, and platform-specific error messages.
+server-side download progress before browser save, sequential playlist queues,
+download history stored in the browser, and platform-specific error messages.
+Video downloads are normalized on the server to MP4 with iOS-friendly audio and
+metadata. The default path remuxes/copies compatible video for speed and only
+transcodes audio when needed.
 
 ## Important limitations
 
@@ -42,10 +45,14 @@ history stored in the browser, and platform-specific error messages.
   `SOCIAL_COOKIES_BASE64` to expose all public images visible to that account.
 - TikTok photo CDN URLs are temporary. Click **Fetch** again if a preview has
   expired or fails to load.
-- If a Threads video download is interrupted, use the browser's **Resume**
-  action. The video proxy forwards HTTP Range requests.
-- Progress downloads are assembled in browser memory before the save begins.
-  Very large files therefore require enough free memory in the browser tab.
+- Progress downloads are assembled on the SaveIt server in temporary files and
+  then streamed to the browser after completion. Very large files therefore use
+  homelab disk space and bandwidth rather than browser memory.
+- Cross-platform MP4 output uses server-side `ffmpeg`. By default SaveIt uses a
+  fast hybrid remux path. Set `SAVEIT_FORCE_VIDEO_TRANSCODE=1` only when you
+  need strict H.264/AAC re-encoding for stubborn devices or files.
+- Temporary progress files are stored in the OS temp directory and expire after
+  roughly 30 minutes.
 
 ## How extraction works
 
@@ -253,8 +260,8 @@ Click **Fetch** again. TikTok signs image URLs and they can expire quickly.
 
 ### Threads download is interrupted
 
-Choose **Resume** in the browser download manager. Starting from the beginning
-is usually unnecessary because the proxy supports byte-range requests.
+Use **Retry Failed** in the progress panel. Progress jobs are prepared on the
+SaveIt server first, then streamed to the browser when complete.
 
 ### Docker reports that a host port is already allocated
 

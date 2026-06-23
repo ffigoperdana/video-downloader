@@ -1,6 +1,7 @@
 import {
   decodeSnapSaveResponse,
   extractFacebookEmbeddedImageUrls,
+  extractThreadsMedia,
   extractTikwmImageUrls,
   isSupportedPostUrl,
 } from "../social-image.service";
@@ -37,6 +38,46 @@ describe("extractTikwmImageUrls", () => {
   it("rejects unsuccessful or malformed responses", () => {
     expect(extractTikwmImageUrls({ code: -1, data: { images: ["bad"] } })).toEqual([]);
     expect(extractTikwmImageUrls({ code: 0, data: { images: "bad" } })).toEqual([]);
+  });
+});
+
+describe("extractThreadsMedia", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("keeps LoveThreads image links that do not include a file extension", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "ok",
+        data: `
+          <ul class="download-box">
+            <li>
+              <span class="format-icon"><i class="icon icon-dlimage"></i></span>
+              <div class="photo-option">
+                <option value="https://dl.snapcdn.app/get?token=image-token">1080x1080</option>
+              </div>
+            </li>
+          </ul>
+        `,
+      }),
+    }) as unknown as typeof fetch;
+
+    await expect(
+      extractThreadsMedia("https://www.threads.com/@user/post/DZ5aSRWk6EZ"),
+    ).resolves.toEqual({
+      images: [
+        {
+          remoteUrl: "https://dl.snapcdn.app/get?token=image-token",
+          extension: "jpg",
+        },
+      ],
+      videos: [],
+    });
   });
 });
 

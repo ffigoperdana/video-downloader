@@ -103,7 +103,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${syne.variable} ${dmSans.variable}`}>
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="icon" href="/icons/saveit-icon-192.png" sizes="192x192" />
+        <link rel="apple-touch-icon" href="/icons/saveit-icon-192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icons/saveit-icon-512.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <script dangerouslySetInnerHTML={{ __html: SW_REGISTER }} />

@@ -9,6 +9,7 @@ describe("useBatchDownload", () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -109,29 +110,39 @@ describe("useBatchDownload", () => {
     // The cancel ref should be set - verified by no error thrown
   });
 
-  it("starts an item immediately after it is queued and tracks progress", async () => {
-    const reader = {
-      read: jest
-        .fn()
-        .mockResolvedValueOnce({
-          done: false,
-          value: new Uint8Array([1, 2, 3]),
-        })
-        .mockResolvedValueOnce({ done: true }),
-      cancel: jest.fn(),
-    };
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      headers: { get: () => "3" },
-      body: { getReader: () => reader },
-    });
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: jest.fn(() => "blob:test"),
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      value: jest.fn(),
+  it("starts a server-side job, polls progress, and downloads the completed file", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn((input) => {
+      const url = String(input);
+      if (url === "/internal/progress/start") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            job: {
+              id: "job-1",
+              status: "downloading",
+              progress: 0,
+              receivedBytes: 0,
+              totalBytes: 3,
+            },
+          }),
+        } as Response);
+      }
+      if (url === "/internal/progress/status?id=job-1") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            job: {
+              id: "job-1",
+              status: "completed",
+              progress: 100,
+              receivedBytes: 3,
+              totalBytes: 3,
+            },
+          }),
+        } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch ${url}`));
     });
     jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation();
 
@@ -145,7 +156,9 @@ describe("useBatchDownload", () => {
           downloadPath: "/download",
         },
       ]);
-      await result.current.startBatch();
+      const promise = result.current.startBatch();
+      await jest.runOnlyPendingTimersAsync();
+      await promise;
     });
 
     expect(result.current.items[0]).toMatchObject({
@@ -153,6 +166,9 @@ describe("useBatchDownload", () => {
       progress: 100,
       receivedBytes: 3,
       totalBytes: 3,
+      serverJobId: "job-1",
     });
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
+    jest.useRealTimers();
   });
 });
