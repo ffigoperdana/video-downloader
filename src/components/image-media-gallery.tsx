@@ -3,8 +3,6 @@
 import { useState } from "react";
 import type { SocialImageAsset } from "@/core/services/social-image.service";
 import Spinner from "@/components/ui/spinner";
-import BatchProgress from "@/components/batch-progress";
-import { useBatchDownload } from "@/core/hooks/use-batch-download";
 
 interface ImageMediaGalleryProps {
   images: SocialImageAsset[];
@@ -69,36 +67,14 @@ export default function ImageMediaGallery({
   platformLabel,
   onQueueImageDownload,
 }: ImageMediaGalleryProps) {
-  const batch = useBatchDownload();
-
   const queueImageDownload = (image: SocialImageAsset) => {
     onQueueImageDownload?.(image);
-    batch.addToQueue([{
-      url: image.downloadPath,
-      title: `${platformLabel} image ${image.index + 1}`,
-      filename: `${platformLabel.toLowerCase()}-${image.index + 1}.${image.extension}`,
-      downloadPath: image.downloadPath,
-    }]);
-    void batch.startBatch();
   };
 
   if (!images.length) return null;
 
   return (
     <div className="space-y-3">
-      <BatchProgress
-        items={batch.items}
-        active={batch.active}
-        minimized={batch.minimized}
-        onToggleMinimize={() => batch.setMinimized(!batch.minimized)}
-        onCancel={batch.cancelAll}
-        onRetryFailed={batch.retryFailed}
-        onClearCompleted={batch.clearCompleted}
-        completed={batch.completed}
-        failed={batch.failed}
-        total={batch.total}
-      />
-
       <div className="flex items-center justify-between">
         <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">
           Images

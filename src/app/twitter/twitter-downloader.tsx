@@ -203,7 +203,19 @@ export default function TwitterDownloader() {
             </div>
           </div>
 
-          <ImageMediaGallery images={info.images} platformLabel="Twitter" />
+          <ImageMediaGallery
+            images={info.images}
+            platformLabel="Twitter"
+            onQueueImageDownload={(image) => {
+              batch.addToQueue([{
+                url: image.downloadPath,
+                title: `X image ${image.index + 1}`,
+                filename: `x-${image.index + 1}.${image.extension}`,
+                downloadPath: image.downloadPath,
+              }]);
+              void batch.startBatch();
+            }}
+          />
 
           {/* Quality */}
           {!info.hasNoVideo && <div className="space-y-2">

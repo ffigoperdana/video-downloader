@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  renameSync,
   statSync,
   unlinkSync,
 } from "node:fs";
@@ -11,6 +12,7 @@ import { stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
 
 export type DownloadJobStatus = "pending" | "downloading" | "completed" | "failed" | "cancelled";
 
@@ -79,6 +81,73 @@ function updateJob(id: string, patch: Partial<DownloadJob>) {
   jobs.set(id, { ...job, ...patch });
 }
 
+function shouldForceTranscode() {
+  return process.env.SAVEIT_FORCE_VIDEO_TRANSCODE === "1";
+}
+
+function isMp4Filename(filename: string) {
+  return filename.toLowerCase().endsWith(".mp4");
+}
+
+async function makeMp4ShareFriendly(filePath: string): Promise<boolean> {
+  const outputPath = `${filePath}.share.mp4`;
+  const videoArgs = shouldForceTranscode()
+    ? [
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-profile:v",
+        "main",
+        "-level",
+        "4.0",
+        "-pix_fmt",
+        "yuv420p",
+      ]
+    : ["-c:v", "copy"];
+
+  await new Promise<void>((resolve, reject) => {
+    const ffmpeg = spawn(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-i",
+        filePath,
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a?",
+        ...videoArgs,
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-movflags",
+        "+faststart",
+        outputPath,
+      ],
+      { stdio: ["ignore", "ignore", "pipe"] },
+    );
+    let stderr = "";
+    ffmpeg.stderr?.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    ffmpeg.on("error", reject);
+    ffmpeg.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr.trim() || `ffmpeg exited ${code}`));
+    });
+  });
+
+  if (!existsSync(outputPath)) return false;
+  unlinkSync(filePath);
+  renameSync(outputPath, filePath);
+  return true;
+}
+
 function scheduleCleanup(job: DownloadJob) {
   if (job.cleanupTimer) clearTimeout(job.cleanupTimer);
   job.cleanupTimer = setTimeout(() => {
@@ -139,11 +208,25 @@ async function runDownloadJob(id: string, origin: string, downloadPath: string) 
       writer.once("error", reject);
     });
 
+    if (isMp4Filename(job.filename)) {
+      updateJob(id, { progress: 99 });
+      try {
+        await makeMp4ShareFriendly(job.filePath);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "MP4 remux failed";
+        console.error("[download job mp4 remux]", message);
+      }
+    }
+
+    const finalSize = existsSync(job.filePath)
+      ? statSync(job.filePath).size
+      : receivedBytes;
+
     updateJob(id, {
       status: "completed",
       progress: 100,
-      receivedBytes,
-      totalBytes: totalBytes ?? receivedBytes,
+      receivedBytes: finalSize,
+      totalBytes: finalSize,
     });
     const completed = jobs.get(id);
     if (completed) scheduleCleanup(completed);

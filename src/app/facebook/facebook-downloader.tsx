@@ -201,7 +201,19 @@ export default function FacebookDownloader() {
             </div>
           </div>
 
-          <ImageMediaGallery images={info.images} platformLabel="Facebook" />
+          <ImageMediaGallery
+            images={info.images}
+            platformLabel="Facebook"
+            onQueueImageDownload={(image) => {
+              batch.addToQueue([{
+                url: image.downloadPath,
+                title: `Facebook image ${image.index + 1}`,
+                filename: `facebook-${image.index + 1}.${image.extension}`,
+                downloadPath: image.downloadPath,
+              }]);
+              void batch.startBatch();
+            }}
+          />
 
           {/* Quality */}
           {!info.hasNoVideo && <div className="space-y-2">

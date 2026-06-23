@@ -88,10 +88,12 @@ export default function InstagramDownloader() {
 
   const isCarousel = info && info.entries.length > 0;
   const videoEntries = info?.entries.filter((e) => e.isVideo) ?? [];
+  const imageEntries = info?.images ?? [];
+  const downloadableMediaCount = videoEntries.length + imageEntries.length;
 
   const handleDownloadAll = useCallback(async () => {
     if (!info || !isCarousel) return;
-    const queueItems = await Promise.all(
+    const videoQueueItems = await Promise.all(
       videoEntries.map(async (entry, i) => {
         const r = await prepareInstagramDownloadAction(
           url,
@@ -106,9 +108,19 @@ export default function InstagramDownloader() {
         };
       }),
     );
-    batch.addToQueue(queueItems);
+    const imageQueueItems = imageEntries.map((image) => ({
+      url: image.downloadPath,
+      title: `Instagram image ${image.index + 1}`,
+      filename: `instagram-${image.index + 1}.${image.extension}`,
+      downloadPath: image.downloadPath,
+    }));
+    batch.addToQueue(
+      [...videoQueueItems, ...imageQueueItems].filter((item) =>
+        Boolean(item.downloadPath),
+      ),
+    );
     batch.startBatch();
-  }, [info, isCarousel, videoEntries, url, batch]);
+  }, [info, isCarousel, videoEntries, imageEntries, url, batch]);
 
   return (
     <DownloaderShell
@@ -258,7 +270,19 @@ export default function InstagramDownloader() {
             </div>
           )}
 
-          <ImageMediaGallery images={info.images} platformLabel="Instagram" />
+          <ImageMediaGallery
+            images={info.images}
+            platformLabel="Instagram"
+            onQueueImageDownload={(image) => {
+              batch.addToQueue([{
+                url: image.downloadPath,
+                title: `Instagram image ${image.index + 1}`,
+                filename: `instagram-${image.index + 1}.${image.extension}`,
+                downloadPath: image.downloadPath,
+              }]);
+              void batch.startBatch();
+            }}
+          />
 
           {/* Single download */}
           {!isCarousel && !info.hasNoVideo && (
@@ -290,7 +314,7 @@ export default function InstagramDownloader() {
           {/* Carousel grid */}
           {isCarousel && (
             <div className="space-y-3">
-              {videoEntries.length > 1 && (
+              {downloadableMediaCount > 1 && (
                 <button
                   onClick={handleDownloadAll}
                   disabled={batch.active}
@@ -305,7 +329,7 @@ export default function InstagramDownloader() {
                   >
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
                   </svg>
-                  Download All Videos ({videoEntries.length})
+                  Download All Media ({downloadableMediaCount})
                 </button>
               )}
               <p className="text-xs text-zinc-600 font-medium uppercase tracking-wider">

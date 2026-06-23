@@ -32,6 +32,8 @@ download history stored in the browser, and platform-specific error messages.
 Video downloads are normalized on the server to MP4 with iOS-friendly audio and
 metadata. The default path remuxes/copies compatible video for speed and only
 transcodes audio when needed.
+Completed MP4 jobs are finalized with `faststart` metadata so they are friendlier
+for sharing to apps such as WhatsApp.
 
 ## Important limitations
 

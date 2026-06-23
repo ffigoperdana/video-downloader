@@ -98,6 +98,7 @@ export class TikTokDownloaderService {
   async getVideoInfo(rawUrl: string): Promise<TikTokVideoInfo> {
     const url = cleanTikTokUrl(rawUrl);
     const imagesPromise = getSocialImageAssets(url, "tiktok").catch(() => []);
+    const isPhotoPost = /\/photo\/\d+\/?$/i.test(new URL(url).pathname);
 
     let jsonStr: string;
     try {
@@ -141,6 +142,26 @@ export class TikTokDownloaderService {
     } catch {
       console.error("[tiktok:getVideoInfo] raw:", jsonStr.slice(0, 300));
       throw new Error("Failed to parse yt-dlp output for TikTok");
+    }
+
+    if (isPhotoPost) {
+      const images = await imagesPromise;
+      if (images.length) {
+        return {
+          id: url.match(/\/photo\/(\d+)/)?.[1] ?? raw.id ?? "",
+          title: raw.title ?? raw.description ?? "TikTok image post",
+          thumbnail: images[0].previewPath,
+          duration: 0,
+          uploader: raw.uploader ?? raw.creator ?? "Unknown",
+          uploader_id: raw.uploader_id ?? raw.channel_id ?? "",
+          view_count: Number(raw.view_count) || 0,
+          like_count: Number(raw.like_count) || 0,
+          formats: [],
+          images,
+          media_type: "image",
+          hasNoVideo: true,
+        };
+      }
     }
 
     const formats: TikTokFormat[] = (raw.formats ?? [])

@@ -215,7 +215,19 @@ export default function TikTokDownloader() {
           </div>
 
           {/* Variant selector */}
-          <ImageMediaGallery images={info.images} platformLabel="TikTok" />
+          <ImageMediaGallery
+            images={info.images}
+            platformLabel="TikTok"
+            onQueueImageDownload={(image) => {
+              batch.addToQueue([{
+                url: image.downloadPath,
+                title: `TikTok image ${image.index + 1}`,
+                filename: `tiktok-${image.index + 1}.${image.extension}`,
+                downloadPath: image.downloadPath,
+              }]);
+              void batch.startBatch();
+            }}
+          />
 
           {!info.hasNoVideo && <div className="space-y-2">
             <p className="text-xs text-zinc-600 font-medium uppercase tracking-wider">
