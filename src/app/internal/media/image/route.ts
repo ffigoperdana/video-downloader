@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { spawn } from "node:child_process";
+import { Readable } from "node:stream";
 import {
   extractSocialImages,
   isSupportedPostUrl,
@@ -15,6 +17,62 @@ const PLATFORMS = new Set<ImagePlatform>([
   "twitter",
   "threads",
 ]);
+
+type ImageOutputFormat = "jpg" | "png";
+
+function getRequestedOutputFormat(value: string | null): ImageOutputFormat | null {
+  const format = value?.toLowerCase();
+  if (format === "jpg" || format === "jpeg") return "jpg";
+  if (format === "png") return "png";
+  return null;
+}
+
+function convertImageStream(
+  body: ReadableStream<Uint8Array>,
+  format: ImageOutputFormat,
+): Readable {
+  const args =
+    format === "jpg"
+      ? [
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-i",
+          "pipe:0",
+          "-frames:v",
+          "1",
+          "-vf",
+          "format=rgb24",
+          "-f",
+          "image2pipe",
+          "-vcodec",
+          "mjpeg",
+          "-q:v",
+          "2",
+          "pipe:1",
+        ]
+      : [
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-i",
+          "pipe:0",
+          "-frames:v",
+          "1",
+          "-f",
+          "image2pipe",
+          "-vcodec",
+          "png",
+          "pipe:1",
+        ];
+
+  const ffmpeg = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
+  ffmpeg.stderr.on("data", (chunk) =>
+    console.error("[image convert]", chunk.toString().trim()),
+  );
+  Readable.fromWeb(body as any).pipe(ffmpeg.stdin);
+  return ffmpeg.stdout;
+}
 
 async function fetchImageUpstream(
   remoteUrl: string,
@@ -78,6 +136,9 @@ export async function GET(request: NextRequest) {
   const sourceUrl = searchParams.get("url");
   const index = Number(searchParams.get("index"));
   const download = searchParams.get("download") === "1";
+  const outputFormat = download
+    ? getRequestedOutputFormat(searchParams.get("format"))
+    : null;
 
   if (
     !platform ||
@@ -99,9 +160,16 @@ export async function GET(request: NextRequest) {
 
     const upstream = await fetchImageUpstream(image.remoteUrl, platform, sourceUrl);
     const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+    const finalExtension = outputFormat ?? image.extension;
+    const finalContentType =
+      outputFormat === "jpg"
+        ? "image/jpeg"
+        : outputFormat === "png"
+          ? "image/png"
+          : contentType;
 
     const headers = new Headers({
-      "Content-Type": contentType,
+      "Content-Type": finalContentType,
       "Cache-Control": download
         ? "private, no-store"
         : "public, max-age=300, stale-while-revalidate=600",
@@ -111,7 +179,14 @@ export async function GET(request: NextRequest) {
     if (download) {
       headers.set(
         "Content-Disposition",
-        `attachment; filename="${platform}-${index + 1}.${image.extension}"`,
+        `attachment; filename="${platform}-${index + 1}.${finalExtension}"`,
+      );
+    }
+
+    if (outputFormat && upstream.body) {
+      return new Response(
+        Readable.toWeb(convertImageStream(upstream.body, outputFormat)) as any,
+        { headers },
       );
     }
 

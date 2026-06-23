@@ -218,12 +218,17 @@ export default function ThreadsDownloader() {
           <ImageMediaGallery
             images={info.images}
             platformLabel="Threads"
-            onQueueImageDownload={(image) => {
+            onQueueImageDownload={(image, format) => {
+              const extension = format === "original" ? image.extension : format;
+              const downloadPath =
+                format === "original"
+                  ? image.downloadPath
+                  : `${image.downloadPath}&format=${format}`;
               batch.addToQueue([{
-                url: image.downloadPath,
+                url: downloadPath,
                 title: `Threads image ${image.index + 1}`,
-                filename: `threads-${image.index + 1}.${image.extension}`,
-                downloadPath: image.downloadPath,
+                filename: `threads-${image.index + 1}.${extension}`,
+                downloadPath,
               }]);
               void batch.startBatch();
             }}

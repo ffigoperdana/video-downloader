@@ -204,12 +204,17 @@ export default function FacebookDownloader() {
           <ImageMediaGallery
             images={info.images}
             platformLabel="Facebook"
-            onQueueImageDownload={(image) => {
+            onQueueImageDownload={(image, format) => {
+              const extension = format === "original" ? image.extension : format;
+              const downloadPath =
+                format === "original"
+                  ? image.downloadPath
+                  : `${image.downloadPath}&format=${format}`;
               batch.addToQueue([{
-                url: image.downloadPath,
+                url: downloadPath,
                 title: `Facebook image ${image.index + 1}`,
-                filename: `facebook-${image.index + 1}.${image.extension}`,
-                downloadPath: image.downloadPath,
+                filename: `facebook-${image.index + 1}.${extension}`,
+                downloadPath,
               }]);
               void batch.startBatch();
             }}

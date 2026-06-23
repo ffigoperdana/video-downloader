@@ -299,12 +299,17 @@ export default function InstagramDownloader() {
           <ImageMediaGallery
             images={info.images}
             platformLabel="Instagram"
-            onQueueImageDownload={(image) => {
+            onQueueImageDownload={(image, format) => {
+              const extension = format === "original" ? image.extension : format;
+              const downloadPath =
+                format === "original"
+                  ? image.downloadPath
+                  : `${image.downloadPath}&format=${format}`;
               batch.addToQueue([{
-                url: image.downloadPath,
+                url: downloadPath,
                 title: `Instagram image ${image.index + 1}`,
-                filename: `instagram-${image.index + 1}.${image.extension}`,
-                downloadPath: image.downloadPath,
+                filename: `instagram-${image.index + 1}.${extension}`,
+                downloadPath,
               }]);
               void batch.startBatch();
             }}

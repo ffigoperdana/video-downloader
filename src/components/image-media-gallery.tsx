@@ -4,10 +4,15 @@ import { useState } from "react";
 import type { SocialImageAsset } from "@/core/services/social-image.service";
 import Spinner from "@/components/ui/spinner";
 
+export type ImageDownloadFormat = "original" | "jpg" | "png";
+
 interface ImageMediaGalleryProps {
   images: SocialImageAsset[];
   platformLabel: string;
-  onQueueImageDownload?: (image: SocialImageAsset) => void;
+  onQueueImageDownload?: (
+    image: SocialImageAsset,
+    format: ImageDownloadFormat,
+  ) => void;
 }
 
 function ImageCard({
@@ -17,7 +22,7 @@ function ImageCard({
 }: {
   image: SocialImageAsset;
   platformLabel: string;
-  onDownload: (image: SocialImageAsset) => void;
+  onDownload: (image: SocialImageAsset, format: ImageDownloadFormat) => void;
 }) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading",
@@ -48,16 +53,32 @@ function ImageCard({
           }`}
         />
       </div>
-      <button
-        type="button"
-        onClick={() => onDownload(image)}
-        className="flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-syne font-600 text-white bg-white/5 hover:bg-white/10 transition-colors"
-      >
-        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
-          <path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-7 2h14v2H5v-2z" />
-        </svg>
-        Download image {image.index + 1}
-      </button>
+      <div className="grid grid-cols-[1fr_auto_auto] border-t border-white/6 bg-white/[0.03]">
+        <button
+          type="button"
+          onClick={() => onDownload(image, "original")}
+          className="flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-syne font-600 text-white hover:bg-white/10 transition-colors"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+            <path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-7 2h14v2H5v-2z" />
+          </svg>
+          Original {image.extension.toUpperCase()}
+        </button>
+        <button
+          type="button"
+          onClick={() => onDownload(image, "jpg")}
+          className="border-l border-white/6 px-3 py-2.5 text-xs font-syne font-600 text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          JPG
+        </button>
+        <button
+          type="button"
+          onClick={() => onDownload(image, "png")}
+          className="border-l border-white/6 px-3 py-2.5 text-xs font-syne font-600 text-zinc-300 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          PNG
+        </button>
+      </div>
     </div>
   );
 }
@@ -67,8 +88,11 @@ export default function ImageMediaGallery({
   platformLabel,
   onQueueImageDownload,
 }: ImageMediaGalleryProps) {
-  const queueImageDownload = (image: SocialImageAsset) => {
-    onQueueImageDownload?.(image);
+  const queueImageDownload = (
+    image: SocialImageAsset,
+    format: ImageDownloadFormat,
+  ) => {
+    onQueueImageDownload?.(image, format);
   };
 
   if (!images.length) return null;

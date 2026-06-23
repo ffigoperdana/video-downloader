@@ -218,12 +218,17 @@ export default function TikTokDownloader() {
           <ImageMediaGallery
             images={info.images}
             platformLabel="TikTok"
-            onQueueImageDownload={(image) => {
+            onQueueImageDownload={(image, format) => {
+              const extension = format === "original" ? image.extension : format;
+              const downloadPath =
+                format === "original"
+                  ? image.downloadPath
+                  : `${image.downloadPath}&format=${format}`;
               batch.addToQueue([{
-                url: image.downloadPath,
+                url: downloadPath,
                 title: `TikTok image ${image.index + 1}`,
-                filename: `tiktok-${image.index + 1}.${image.extension}`,
-                downloadPath: image.downloadPath,
+                filename: `tiktok-${image.index + 1}.${extension}`,
+                downloadPath,
               }]);
               void batch.startBatch();
             }}
