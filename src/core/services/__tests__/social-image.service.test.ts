@@ -223,6 +223,49 @@ describe("extractThreadsMedia", () => {
       videos: [],
     });
   });
+
+  it("reuses cached Threads media for repeated preview requests", async () => {
+    const sourceUrl = "https://www.threads.com/@user/post/DZCACHE123";
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "ok",
+        data: `
+          <ul class="download-box">
+            <li>
+              <span class="format-icon"><i class="icon icon-dlimage"></i></span>
+              <div class="photo-option">
+                <option value="https://dl.snapcdn.app/get?token=cached-image">1080x1080</option>
+              </div>
+            </li>
+          </ul>
+        `,
+      }),
+    }) as unknown as typeof fetch;
+
+    await expect(extractThreadsMedia(sourceUrl)).resolves.toEqual({
+      images: [
+        {
+          remoteUrl: "https://dl.snapcdn.app/get?token=cached-image",
+          extension: "jpg",
+        },
+      ],
+      videos: [],
+    });
+
+    (global.fetch as jest.Mock).mockClear();
+
+    await expect(extractThreadsMedia(sourceUrl)).resolves.toEqual({
+      images: [
+        {
+          remoteUrl: "https://dl.snapcdn.app/get?token=cached-image",
+          extension: "jpg",
+        },
+      ],
+      videos: [],
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });
 
 describe("decodeSnapSaveResponse", () => {

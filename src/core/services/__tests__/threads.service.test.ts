@@ -1,6 +1,20 @@
+const mockExecPromise = jest.fn();
+const mockGetThreadsMediaAssets = jest.fn();
+
+jest.mock("yt-dlp-wrap", () => {
+  return jest.fn().mockImplementation(() => ({
+    execPromise: mockExecPromise,
+  }));
+});
+
+jest.mock("../social-image.service", () => ({
+  getThreadsMediaAssets: mockGetThreadsMediaAssets,
+}));
+
 import {
   cleanThreadsUrl,
   isValidThreadsUrl,
+  ThreadsDownloaderService,
 } from "../threads.service";
 
 describe("cleanThreadsUrl", () => {
@@ -49,5 +63,38 @@ describe("isValidThreadsUrl", () => {
     "",
   ])("rejects %s", (url) => {
     expect(isValidThreadsUrl(url)).toBe(false);
+  });
+});
+
+describe("ThreadsDownloaderService", () => {
+  beforeEach(() => {
+    mockExecPromise.mockReset();
+    mockGetThreadsMediaAssets.mockReset();
+  });
+
+  it("uses direct Threads media before trying yt-dlp", async () => {
+    mockGetThreadsMediaAssets.mockResolvedValue({
+      images: [
+        {
+          index: 0,
+          extension: "jpg",
+          previewPath: "/internal/media/image?platform=threads&index=0",
+          downloadPath: "/internal/media/image?platform=threads&index=0&download=1",
+        },
+      ],
+      videos: [],
+    });
+
+    const service = new ThreadsDownloaderService();
+
+    await expect(
+      service.getVideoInfo("https://www.threads.com/@zainalsalamun/post/DZ6gqDfDpe5"),
+    ).resolves.toMatchObject({
+      media_type: "image",
+      hasNoVideo: true,
+      images: [{ index: 0 }],
+      uploader_id: "zainalsalamun",
+    });
+    expect(mockExecPromise).not.toHaveBeenCalled();
   });
 });

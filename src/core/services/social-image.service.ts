@@ -68,6 +68,21 @@ const galleryDlPath = () =>
 const pythonPath = () => process.env.PYTHON_BINARY_PATH ?? "python3";
 let generatedSocialCookiesPath: string | null = null;
 
+const THREADS_MEDIA_CACHE_TTL_MS = 10 * 60 * 1000;
+const THREADS_MEDIA_STALE_TTL_MS = 60 * 60 * 1000;
+const threadsMediaCache = new Map<
+  string,
+  {
+    media: { images: ExtractedImage[]; videos: ExtractedVideo[] };
+    expiresAt: number;
+    staleUntil: number;
+  }
+>();
+const threadsMediaInflight = new Map<
+  string,
+  Promise<{ images: ExtractedImage[]; videos: ExtractedVideo[] }>
+>();
+
 function getSocialCookiePath(): string | null {
   const configuredPath = process.env.GALLERY_DL_COOKIES_PATH?.trim();
   if (configuredPath) return configuredPath;
@@ -306,6 +321,62 @@ function uniqueExtractedMedia(items: ExtractedMedia[]): ExtractedMedia[] {
   }
 
   return media;
+}
+
+function cloneThreadsMedia(media: {
+  images: ExtractedImage[];
+  videos: ExtractedVideo[];
+}): { images: ExtractedImage[]; videos: ExtractedVideo[] } {
+  return {
+    images: media.images.map((image) => ({ ...image })),
+    videos: media.videos.map((video) => ({ ...video })),
+  };
+}
+
+function setThreadsMediaCache(
+  sourceUrl: string,
+  media: { images: ExtractedImage[]; videos: ExtractedVideo[] },
+) {
+  const now = Date.now();
+  threadsMediaCache.set(sourceUrl, {
+    media: cloneThreadsMedia(media),
+    expiresAt: now + THREADS_MEDIA_CACHE_TTL_MS,
+    staleUntil: now + THREADS_MEDIA_STALE_TTL_MS,
+  });
+}
+
+function getThreadsMediaCache(
+  sourceUrl: string,
+  allowStale = false,
+): { images: ExtractedImage[]; videos: ExtractedVideo[] } | null {
+  const cached = threadsMediaCache.get(sourceUrl);
+  if (!cached) return null;
+
+  const now = Date.now();
+  if (cached.expiresAt > now || (allowStale && cached.staleUntil > now)) {
+    return cloneThreadsMedia(cached.media);
+  }
+
+  threadsMediaCache.delete(sourceUrl);
+  return null;
+}
+
+async function retry<T>(
+  action: () => Promise<T>,
+  attempts = 3,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await action();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
 }
 
 function uniqueImagesWithDefault(urls: string[], defaultExtension: string): ExtractedImage[] {
@@ -753,7 +824,29 @@ export async function extractThreadsMedia(sourceUrl: string): Promise<{
   if (!isSupportedPostUrl(sourceUrl, "threads")) {
     throw new Error("Unsupported Threads URL");
   }
-  return extractThreadsViaLoveThreads(sourceUrl);
+
+  const cached = getThreadsMediaCache(sourceUrl);
+  if (cached) return cached;
+
+  const existing = threadsMediaInflight.get(sourceUrl);
+  if (existing) return cloneThreadsMedia(await existing);
+
+  const pending = retry(() => extractThreadsViaLoveThreads(sourceUrl), 3)
+    .then((media) => {
+      setThreadsMediaCache(sourceUrl, media);
+      return cloneThreadsMedia(media);
+    })
+    .catch((error) => {
+      const stale = getThreadsMediaCache(sourceUrl, true);
+      if (stale) return stale;
+      throw error;
+    })
+    .finally(() => {
+      threadsMediaInflight.delete(sourceUrl);
+    });
+
+  threadsMediaInflight.set(sourceUrl, pending);
+  return cloneThreadsMedia(await pending);
 }
 
 export async function getThreadsMediaAssets(

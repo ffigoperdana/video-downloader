@@ -73,6 +73,42 @@ const THREADS_HEADERS = [
   "User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 ];
 
+function mapDirectMediaInfo(
+  url: string,
+  urlUsername: string | undefined,
+  media: Awaited<ReturnType<typeof getThreadsMediaAssets>>,
+): ThreadsPostInfo {
+  const hasVideo = media.videos.length > 0;
+  return {
+    id: url.split("/post/")[1] ?? "",
+    title: hasVideo
+      ? `Threads video${urlUsername ? ` by @${urlUsername}` : ""}`
+      : `Threads image post${urlUsername ? ` by @${urlUsername}` : ""}`,
+    description: "",
+    thumbnail: media.images[0]?.previewPath ?? "",
+    duration: 0,
+    uploader: urlUsername ?? "Threads",
+    uploader_id: urlUsername ?? "",
+    formats: hasVideo
+      ? [
+          {
+            format_id: "direct",
+            ext: "mp4",
+            resolution: "best",
+            fps: null,
+            filesize: null,
+            vcodec: "unknown",
+            acodec: "unknown",
+            quality: 1,
+          },
+        ]
+      : [],
+    media_type: hasVideo ? "video" : "image",
+    hasNoVideo: !hasVideo,
+    images: hasVideo ? [] : media.images,
+  };
+}
+
 export class ThreadsDownloaderService {
   private ytDlp: YTDlpWrap;
 
@@ -83,7 +119,10 @@ export class ThreadsDownloaderService {
   async getVideoInfo(rawUrl: string): Promise<ThreadsPostInfo> {
     const url = cleanThreadsUrl(rawUrl);
     const urlUsername = new URL(url).pathname.match(/^\/@([^/]+)\/post\//)?.[1];
-    const mediaPromise = getThreadsMediaAssets(url).catch(() => null);
+    const media = await getThreadsMediaAssets(url).catch(() => null);
+    if (media && (media.images.length || media.videos.length)) {
+      return mapDirectMediaInfo(url, urlUsername, media);
+    }
 
     let jsonStr: string;
     try {
@@ -102,26 +141,9 @@ export class ThreadsDownloaderService {
         "threads:getVideoInfo",
       );
     } catch (error) {
-      const media = await mediaPromise;
-      if (!media || (!media.images.length && !media.videos.length)) throw error;
-      const hasVideo = media.videos.length > 0;
-      return {
-        id: url.split("/post/")[1] ?? "",
-        title: hasVideo
-          ? `Threads video${urlUsername ? ` by @${urlUsername}` : ""}`
-          : `Threads image post${urlUsername ? ` by @${urlUsername}` : ""}`,
-        description: "",
-        thumbnail: media.images[0]?.previewPath ?? "",
-        duration: 0,
-        uploader: urlUsername ?? "Threads",
-        uploader_id: urlUsername ?? "",
-        formats: hasVideo
-          ? [{ format_id: "direct", ext: "mp4", resolution: "best", fps: null, filesize: null, vcodec: "unknown", acodec: "unknown", quality: 1 }]
-          : [],
-        media_type: hasVideo ? "video" : "image",
-        hasNoVideo: !hasVideo,
-        images: hasVideo ? [] : media.images,
-      };
+      throw new Error(
+        "Unable to extract this Threads post right now. Threads support is experimental; please try again later.",
+      );
     }
 
     let raw: any;
@@ -150,9 +172,8 @@ export class ThreadsDownloaderService {
       }))
       .sort((a: ThreadsFormat, b: ThreadsFormat) => b.quality - a.quality);
 
-    const media = await mediaPromise;
-    const hasDirectVideo = Boolean(media?.videos.length);
-    const images = hasDirectVideo ? [] : (media?.images ?? []);
+    const hasDirectVideo = false;
+    const images: SocialImageAsset[] = [];
     const hasNoVideo = formats.length === 0 && !raw.duration && !hasDirectVideo;
 
     return {
