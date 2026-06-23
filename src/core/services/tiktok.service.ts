@@ -60,6 +60,49 @@ export function isValidTikTokUrl(url: string): boolean {
   return validateTikTokUrl(url);
 }
 
+function extractPhotoUrlFromError(error: unknown): string | null {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const match = message.match(
+    /https?:\/\/(?:www\.)?tiktok\.com\/@[^/\s]+\/photo\/\d+(?:[^\s]*)?/i,
+  );
+  return match ? cleanTikTokUrl(match[0]) : null;
+}
+
+export async function resolveTikTokShortUrl(rawUrl: string): Promise<string> {
+  const url = cleanTikTokUrl(rawUrl);
+  try {
+    const parsed = new URL(url);
+    if (!["vm.tiktok.com", "vt.tiktok.com"].includes(parsed.hostname.toLowerCase())) {
+      return url;
+    }
+
+    const response = await fetch(url, {
+      method: "HEAD",
+      redirect: "manual",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    const location = response.headers.get("location");
+    if (location) return cleanTikTokUrl(new URL(location, url).toString());
+
+    const followed = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    return cleanTikTokUrl(followed.url || url);
+  } catch {
+    return url;
+  }
+}
+
 function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
@@ -96,7 +139,7 @@ export class TikTokDownloaderService {
    * so format selection is simpler than YouTube.
    */
   async getVideoInfo(rawUrl: string): Promise<TikTokVideoInfo> {
-    const url = cleanTikTokUrl(rawUrl);
+    const url = await resolveTikTokShortUrl(rawUrl);
     const imagesPromise = getSocialImageAssets(url, "tiktok").catch(() => []);
     const isPhotoPost = /\/photo\/\d+\/?$/i.test(new URL(url).pathname);
 
@@ -119,18 +162,24 @@ export class TikTokDownloaderService {
       );
     } catch (error) {
       const images = await imagesPromise;
-      if (!images.length) throw error;
+      const fallbackUrl = extractPhotoUrlFromError(error);
+      const fallbackImages =
+        !images.length && fallbackUrl
+          ? await getSocialImageAssets(fallbackUrl, "tiktok").catch(() => [])
+          : [];
+      const availableImages = images.length ? images : fallbackImages;
+      if (!availableImages.length) throw error;
       return {
-        id: url.match(/\/(?:photo|video)\/(\d+)/)?.[1] ?? "",
+        id: (fallbackUrl ?? url).match(/\/(?:photo|video)\/(\d+)/)?.[1] ?? "",
         title: "TikTok image post",
-        thumbnail: images[0].previewPath,
+        thumbnail: availableImages[0].previewPath,
         duration: 0,
         uploader: "Unknown",
         uploader_id: "",
         view_count: 0,
         like_count: 0,
         formats: [],
-        images,
+        images: availableImages,
         media_type: "image",
         hasNoVideo: true,
       };

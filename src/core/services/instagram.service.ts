@@ -96,6 +96,35 @@ function hasVideoFormats(formats: any[]): boolean {
   return formats.some((f: any) => f.vcodec && f.vcodec !== "none");
 }
 
+function isVideoUrl(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return /\.(?:mp4|m4v|mov|webm|m3u8)(?:$|[?#])/i.test(url.pathname);
+  } catch {
+    return /\.(?:mp4|m4v|mov|webm|m3u8)(?:$|[?#])/i.test(value);
+  }
+}
+
+function isVideoEntry(entry: any): boolean {
+  const requestedDownloads = Array.isArray(entry.requested_downloads)
+    ? entry.requested_downloads
+    : [];
+
+  return (
+    hasVideoFormats(entry.formats ?? []) ||
+    Boolean(entry.duration) ||
+    entry.ext === "mp4" ||
+    entry.media_type === "video" ||
+    entry.__typename === "GraphVideo" ||
+    isVideoUrl(entry.url) ||
+    isVideoUrl(entry.video_url) ||
+    requestedDownloads.some(
+      (download: any) => download?.ext === "mp4" || isVideoUrl(download?.url),
+    )
+  );
+}
+
 function mapFormat(f: any): InstagramFormat {
   return {
     format_id: f.format_id,
@@ -186,7 +215,7 @@ export class InstagramDownloaderService {
         .filter((e: any) => e != null)
         .map((e: any, i: number) => {
           const entryFormats = e.formats ?? [];
-          const isVideo = hasVideoFormats(entryFormats);
+          const isVideo = isVideoEntry(e);
           return {
             id: e.id ?? `entry_${i}`,
             title: e.title ?? `Slide ${i + 1}`,

@@ -5,6 +5,7 @@ import {
   TikTokVideoInfo,
   cleanTikTokUrl,
   isValidTikTokUrl,
+  resolveTikTokShortUrl,
 } from "@/core/services/tiktok.service";
 
 export interface GetTikTokInfoResult {
@@ -23,7 +24,7 @@ export async function getTikTokInfoAction(
     return { success: false, error: "URL is required" };
   }
 
-  const url = cleanTikTokUrl(rawUrl.trim());
+  const url = await resolveTikTokShortUrl(rawUrl.trim());
 
   if (!isValidTikTokUrl(url)) {
     return { success: false, error: "Invalid TikTok URL" };
@@ -61,7 +62,7 @@ export async function prepareTikTokDownloadAction(
     return { success: false, error: "URL is required" };
   }
 
-  const url = cleanTikTokUrl(rawUrl.trim());
+  const url = await resolveTikTokShortUrl(rawUrl.trim());
   const ext = variant === "audio" ? "mp3" : "mp4";
   const filename = tiktokDownloaderService.buildSafeFilename(title, ext);
 
