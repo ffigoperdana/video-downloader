@@ -27,6 +27,12 @@ interface ExtractedVideo {
   extension: string;
 }
 
+interface ExtractedMedia {
+  type: "image" | "video";
+  remoteUrl: string;
+  extension: string;
+}
+
 export interface ThreadsMediaAssets {
   images: SocialImageAsset[];
   videos: Array<{
@@ -35,9 +41,31 @@ export interface ThreadsMediaAssets {
   }>;
 }
 
+export interface InstagramMediaAssets {
+  images: SocialImageAsset[];
+  videos: Array<{
+    index: number;
+    downloadPath: string;
+  }>;
+  items: Array<
+    | {
+        type: "image";
+        index: number;
+        previewPath: string;
+        downloadPath: string;
+      }
+    | {
+        type: "video";
+        index: number;
+        downloadPath: string;
+      }
+  >;
+}
+
 const execFileAsync = promisify(execFile);
 const galleryDlPath = () =>
   process.env.GALLERY_DL_BINARY_PATH ?? "gallery-dl";
+const pythonPath = () => process.env.PYTHON_BINARY_PATH ?? "python3";
 let generatedSocialCookiesPath: string | null = null;
 
 function getSocialCookiePath(): string | null {
@@ -109,6 +137,8 @@ const IMAGE_EXTENSIONS = new Set([
   "webp",
 ]);
 
+const VIDEO_EXTENSIONS = new Set(["m3u8", "m4v", "mov", "mp4", "webm"]);
+
 export function isSupportedPostUrl(
   rawUrl: string,
   platform: ImagePlatform,
@@ -137,6 +167,35 @@ function inferExtension(rawUrl: string): string | null {
   return null;
 }
 
+function inferVideoExtension(rawUrl: string): string | null {
+  try {
+    const url = new URL(rawUrl);
+    const match = url.pathname.match(/\.([a-z0-9]{2,5})$/i);
+    const extension = match?.[1]?.toLowerCase();
+    if (extension && VIDEO_EXTENSIONS.has(extension)) return extension;
+  } catch {}
+  return null;
+}
+
+function mergeExtractedImages(images: ExtractedImage[]): ExtractedImage[] {
+  const seen = new Set<string>();
+  const merged: ExtractedImage[] = [];
+
+  for (const image of images) {
+    if (merged.length >= 20 || seen.has(image.remoteUrl)) continue;
+    try {
+      const parsed = new URL(image.remoteUrl);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
+    } catch {
+      continue;
+    }
+    seen.add(image.remoteUrl);
+    merged.push(image);
+  }
+
+  return merged;
+}
+
 function uniqueImages(urls: string[]): ExtractedImage[] {
   const seen = new Set<string>();
   const images: ExtractedImage[] = [];
@@ -159,6 +218,64 @@ function uniqueImages(urls: string[]): ExtractedImage[] {
   }
 
   return images;
+}
+
+function uniqueMedia(urls: string[]): ExtractedMedia[] {
+  const seen = new Set<string>();
+  const media: ExtractedMedia[] = [];
+
+  for (const rawUrl of urls) {
+    if (media.length >= 40) break;
+    const url = rawUrl.trim();
+    if (!url || seen.has(url)) continue;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
+    } catch {
+      continue;
+    }
+
+    const imageExtension = inferExtension(url);
+    const videoExtension = inferVideoExtension(url);
+    if (!imageExtension && !videoExtension) continue;
+
+    seen.add(url);
+    media.push({
+      type: videoExtension ? "video" : "image",
+      remoteUrl: url,
+      extension: videoExtension ?? imageExtension ?? "jpg",
+    });
+  }
+
+  return media;
+}
+
+function extractInstagramShortcode(sourceUrl: string): string | null {
+  try {
+    const url = new URL(sourceUrl);
+    return url.pathname.match(/\/(?:p|reel|reels|tv)\/([^/?#]+)/i)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function uniqueExtractedMedia(items: ExtractedMedia[]): ExtractedMedia[] {
+  const seen = new Set<string>();
+  const media: ExtractedMedia[] = [];
+
+  for (const item of items) {
+    if (media.length >= 40 || seen.has(item.remoteUrl)) continue;
+    try {
+      const parsed = new URL(item.remoteUrl);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
+    } catch {
+      continue;
+    }
+    seen.add(item.remoteUrl);
+    media.push(item);
+  }
+
+  return media;
 }
 
 function uniqueImagesWithDefault(urls: string[], defaultExtension: string): ExtractedImage[] {
@@ -251,7 +368,7 @@ async function extractFacebookViaSnapSave(sourceUrl: string): Promise<ExtractedI
   return uniqueImagesWithDefault(urls, "jpg");
 }
 
-async function extractWithGalleryDl(url: string): Promise<ExtractedImage[]> {
+async function extractWithGalleryDlMedia(url: string): Promise<ExtractedMedia[]> {
   let stdout = "";
   try {
     const result = await execFileAsync(
@@ -276,7 +393,93 @@ async function extractWithGalleryDl(url: string): Promise<ExtractedImage[]> {
     if (!stdout.trim()) throw error;
   }
 
-  return uniqueImages(stdout.split(/\r?\n/));
+  return uniqueMedia(stdout.split(/\r?\n/));
+}
+
+async function extractWithGalleryDl(url: string): Promise<ExtractedImage[]> {
+  return extractWithGalleryDlMedia(url).then((media) =>
+    media
+      .filter((item): item is ExtractedMedia & { type: "image" } =>
+        item.type === "image",
+      )
+      .map(({ remoteUrl, extension }) => ({ remoteUrl, extension })),
+  );
+}
+
+interface InstaloaderPayload {
+  items?: Array<{
+    type?: unknown;
+    url?: unknown;
+  }>;
+}
+
+export function extractInstaloaderMedia(payload: InstaloaderPayload): ExtractedMedia[] {
+  if (!Array.isArray(payload.items)) return [];
+  return uniqueExtractedMedia(
+    payload.items
+      .map((item): ExtractedMedia | null => {
+        if (typeof item.url !== "string") return null;
+        if (item.type === "video") {
+          return {
+            type: "video",
+            remoteUrl: item.url,
+            extension: inferVideoExtension(item.url) ?? "mp4",
+          };
+        }
+        if (item.type === "image") {
+          return {
+            type: "image",
+            remoteUrl: item.url,
+            extension: inferExtension(item.url) ?? "jpg",
+          };
+        }
+        return null;
+      })
+      .filter((item): item is ExtractedMedia => Boolean(item)),
+  );
+}
+
+async function extractInstagramViaInstaloader(sourceUrl: string): Promise<ExtractedMedia[]> {
+  const shortcode = extractInstagramShortcode(sourceUrl);
+  if (!shortcode) return [];
+
+  const script = String.raw`
+import json
+import sys
+import instaloader
+
+shortcode = sys.argv[1]
+loader = instaloader.Instaloader(
+    download_pictures=False,
+    download_videos=False,
+    download_video_thumbnails=False,
+    save_metadata=False,
+    compress_json=False,
+    quiet=True,
+)
+post = instaloader.Post.from_shortcode(loader.context, shortcode)
+items = []
+
+if post.typename == "GraphSidecar":
+    for node in post.get_sidecar_nodes():
+        if node.is_video and node.video_url:
+            items.append({"type": "video", "url": node.video_url})
+        elif node.display_url:
+            items.append({"type": "image", "url": node.display_url})
+elif post.is_video and post.video_url:
+    items.append({"type": "video", "url": post.video_url})
+elif post.url:
+    items.append({"type": "image", "url": post.url})
+
+print(json.dumps({"items": items}, separators=(",", ":")))
+`;
+
+  const { stdout } = await execFileAsync(pythonPath(), ["-c", script, shortcode], {
+    timeout: 25_000,
+    maxBuffer: 2 * 1024 * 1024,
+    windowsHide: true,
+  });
+  return extractInstaloaderMedia(JSON.parse(stdout.trim()) as InstaloaderPayload);
 }
 
 interface TikwmPayload {
@@ -500,6 +703,106 @@ export async function getThreadsMediaAssets(
   };
 }
 
+export async function extractInstagramMedia(sourceUrl: string): Promise<{
+  images: ExtractedImage[];
+  videos: ExtractedVideo[];
+  items: ExtractedMedia[];
+}> {
+  if (!isSupportedPostUrl(sourceUrl, "instagram")) {
+    throw new Error("Unsupported Instagram URL");
+  }
+
+  const [instaloaderResult, galleryResult, pageResult] = await Promise.allSettled([
+    extractInstagramViaInstaloader(sourceUrl),
+    extractWithGalleryDlMedia(sourceUrl),
+    extractPageImages(sourceUrl),
+  ]);
+  const instaloader =
+    instaloaderResult.status === "fulfilled" ? instaloaderResult.value : [];
+  const gallery =
+    galleryResult.status === "fulfilled" ? galleryResult.value : [];
+  const pageImages =
+    pageResult.status === "fulfilled" ? pageResult.value : [];
+  const orderedItems = instaloader.length ? instaloader : gallery;
+
+  const images = mergeExtractedImages([
+    ...instaloader
+      .filter((item): item is ExtractedMedia & { type: "image" } =>
+        item.type === "image",
+      )
+      .map(({ remoteUrl, extension }) => ({ remoteUrl, extension })),
+    ...gallery
+      .filter((item): item is ExtractedMedia & { type: "image" } =>
+        item.type === "image",
+      )
+      .map(({ remoteUrl, extension }) => ({ remoteUrl, extension })),
+    ...pageImages,
+  ]);
+  const videos = uniqueExtractedMedia([...instaloader, ...gallery])
+    .filter((item): item is ExtractedMedia & { type: "video" } =>
+      item.type === "video",
+    )
+    .map(({ remoteUrl, extension }) => ({ remoteUrl, extension }));
+
+  return { images, videos, items: orderedItems };
+}
+
+export async function getInstagramMediaAssets(
+  sourceUrl: string,
+): Promise<InstagramMediaAssets> {
+  const media = await extractInstagramMedia(sourceUrl);
+  const queryBase = new URLSearchParams({ platform: "instagram", url: sourceUrl });
+  const images = toImageAssets(sourceUrl, "instagram", media.images);
+  const videos = media.videos.map((_, index) => {
+    const params = new URLSearchParams(queryBase);
+    params.set("index", String(index));
+    params.set("download", "1");
+    return {
+      index,
+      downloadPath: `/internal/media/video?${params.toString()}`,
+    };
+  });
+
+  const imagePathByUrl = new Map(
+    media.images.map((image, index) => [image.remoteUrl, images[index]]),
+  );
+  const videoIndexByUrl = new Map(
+    media.videos.map((video, index) => [video.remoteUrl, index]),
+  );
+
+  return {
+    images,
+    videos,
+    items: media.items
+      .map((item) => {
+        if (item.type === "image") {
+          const image = imagePathByUrl.get(item.remoteUrl);
+          return image
+            ? {
+                type: "image" as const,
+                index: image.index,
+                previewPath: image.previewPath,
+                downloadPath: image.downloadPath,
+              }
+            : null;
+        }
+
+        const index = videoIndexByUrl.get(item.remoteUrl);
+        const video = index !== undefined ? videos[index] : null;
+        return video
+          ? {
+              type: "video" as const,
+              index: video.index,
+              downloadPath: video.downloadPath,
+            }
+          : null;
+      })
+      .filter((item): item is InstagramMediaAssets["items"][number] =>
+        Boolean(item),
+      ),
+  };
+}
+
 export async function extractSocialImages(
   sourceUrl: string,
   platform: ImagePlatform,
@@ -517,6 +820,11 @@ export async function extractSocialImages(
     }
   }
 
+  if (platform === "instagram") {
+    const media = await extractInstagramMedia(sourceUrl);
+    return media.images;
+  }
+
   const tasks: Array<Promise<ExtractedImage[]>> = [
     extractWithGalleryDl(sourceUrl),
     extractPageImages(sourceUrl),
@@ -529,9 +837,7 @@ export async function extractSocialImages(
   const page = pageResult.status === "fulfilled" ? pageResult.value : [];
   const fallback =
     fallbackResult?.status === "fulfilled" ? fallbackResult.value : [];
-  return uniqueImages(
-    [...gallery, ...page, ...fallback].map((image) => image.remoteUrl),
-  );
+  return mergeExtractedImages([...gallery, ...page, ...fallback]);
 }
 
 export async function getSocialImageAssets(

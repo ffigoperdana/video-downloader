@@ -6,6 +6,7 @@ import {
   nodeStreamToWebResponse,
 } from "@/core/server/media-compat";
 import {
+  extractInstagramMedia,
   extractThreadsMedia,
   isSupportedPostUrl,
 } from "@/core/services/social-image.service";
@@ -26,18 +27,22 @@ export async function GET(request: NextRequest) {
     .replace(/[<>:"/\\|?*\x00-\x1f]/g, "")
     .slice(0, 100);
 
+  const supportedPlatform = platform === "threads" || platform === "instagram";
+  if (!supportedPlatform || !sourceUrl || !Number.isInteger(index) || index < 0) {
+    return NextResponse.json({ error: "Invalid video request" }, { status: 400 });
+  }
+
   if (
-    platform !== "threads" ||
-    !sourceUrl ||
-    !isSupportedPostUrl(sourceUrl, "threads") ||
-    !Number.isInteger(index) ||
-    index < 0
+    !isSupportedPostUrl(sourceUrl, platform as "threads" | "instagram")
   ) {
     return NextResponse.json({ error: "Invalid video request" }, { status: 400 });
   }
 
   try {
-    const media = await extractThreadsMedia(sourceUrl);
+    const media =
+      platform === "instagram"
+        ? await extractInstagramMedia(sourceUrl)
+        : await extractThreadsMedia(sourceUrl);
     const video = media.videos[index];
     if (!video) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });

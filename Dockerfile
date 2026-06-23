@@ -43,7 +43,9 @@ RUN python3 -m pip install \
     --no-cache-dir \
     --break-system-packages \
     gallery-dl==1.32.4 \
-    && gallery-dl --version
+    instaloader==4.15.1 \
+    && gallery-dl --version \
+    && instaloader --version
 
 # Install yt-dlp as standalone binary
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
@@ -53,6 +55,7 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
 
 ENV YTDLP_BINARY_PATH=/usr/local/bin/yt-dlp
 ENV GALLERY_DL_BINARY_PATH=/usr/bin/gallery-dl
+ENV PYTHON_BINARY_PATH=/usr/bin/python3
 
 # Copy build output
 COPY --from=builder /app/package.json .

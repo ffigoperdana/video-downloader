@@ -1,6 +1,8 @@
 import {
   decodeSnapSaveResponse,
   extractFacebookEmbeddedImageUrls,
+  extractInstaloaderMedia,
+  extractSocialImages,
   extractThreadsMedia,
   extractTikwmImageUrls,
   isSupportedPostUrl,
@@ -38,6 +40,70 @@ describe("extractTikwmImageUrls", () => {
   it("rejects unsuccessful or malformed responses", () => {
     expect(extractTikwmImageUrls({ code: -1, data: { images: ["bad"] } })).toEqual([]);
     expect(extractTikwmImageUrls({ code: 0, data: { images: "bad" } })).toEqual([]);
+  });
+});
+
+describe("extractInstaloaderMedia", () => {
+  it("keeps sidecar item order and defaults extensions for Instagram CDN URLs", () => {
+    expect(
+      extractInstaloaderMedia({
+        items: [
+          { type: "video", url: "https://instagram.example/video?token=1" },
+          { type: "image", url: "https://instagram.example/image?token=2" },
+        ],
+      }),
+    ).toEqual([
+      {
+        type: "video",
+        remoteUrl: "https://instagram.example/video?token=1",
+        extension: "mp4",
+      },
+      {
+        type: "image",
+        remoteUrl: "https://instagram.example/image?token=2",
+        extension: "jpg",
+      },
+    ]);
+  });
+});
+
+describe("extractSocialImages TikTok fallback", () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  it("keeps TikWM image links without file extensions", async () => {
+    global.fetch = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      const target = String(input);
+      if (target.includes("tikwm.com/api")) {
+        return {
+          ok: true,
+          json: async () => ({
+            code: 0,
+            data: {
+              images: ["https://tikwm.example/get?token=image-token"],
+            },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        text: async () => "<html></html>",
+      };
+    }) as unknown as typeof fetch;
+
+    await expect(
+      extractSocialImages("https://www.tiktok.com/@user/photo/7631797579776380178", "tiktok"),
+    ).resolves.toEqual([
+      {
+        remoteUrl: "https://tikwm.example/get?token=image-token",
+        extension: "jpeg",
+      },
+    ]);
   });
 });
 

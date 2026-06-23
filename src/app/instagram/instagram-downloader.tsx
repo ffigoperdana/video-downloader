@@ -64,11 +64,28 @@ export default function InstagramDownloader() {
     if (!info) return;
     setError(null);
     setDownloadingIdx(entryIndex !== undefined ? entryIndex : "single");
+    const entry =
+      entryIndex !== undefined
+        ? info.entries.find((candidate) => candidate.index === entryIndex)
+        : undefined;
     const title =
       entryIndex !== undefined
         ? `${info.uploader_id || info.uploader}-slide${entryIndex + 1}`
         : info.title || info.uploader_id || "instagram";
     start(async () => {
+      if (entry?.downloadPath) {
+        const filename = `${title}.mp4`;
+        batch.addToQueue([{
+          url,
+          title,
+          filename,
+          downloadPath: entry.downloadPath,
+        }]);
+        setDownloadingIdx(null);
+        void batch.startBatch();
+        return;
+      }
+
       const r = await prepareInstagramDownloadAction(url, title, entryIndex);
       if (!r.success || !r.downloadPath) {
         setError(r.error ?? "Failed");
@@ -95,6 +112,15 @@ export default function InstagramDownloader() {
     if (!info || !isCarousel) return;
     const videoQueueItems = await Promise.all(
       videoEntries.map(async (entry, i) => {
+        if (entry.downloadPath) {
+          return {
+            url,
+            title: entry.title,
+            filename: `${info.uploader_id || info.uploader}-slide${entry.index + 1}.mp4`,
+            downloadPath: entry.downloadPath,
+          };
+        }
+
         const r = await prepareInstagramDownloadAction(
           url,
           `${info.uploader_id || info.uploader}-slide${entry.index + 1}`,

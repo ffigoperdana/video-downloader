@@ -62,6 +62,9 @@ SaveIt uses several extraction paths because no single tool supports every
 media type:
 
 - [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) extracts video and audio.
+- [`instaloader`](https://github.com/instaloader/instaloader) extracts
+  Instagram sidecar/carousel media when yt-dlp or gallery-dl return incomplete
+  mixed photo/video metadata.
 - [`gallery-dl`](https://github.com/mikf/gallery-dl) extracts supported image
   posts and carousels.
 - Open Graph and embedded page metadata provide additional image fallbacks.
@@ -88,14 +91,15 @@ private URLs unless you understand the privacy implications.
 | Runtime | Node.js 22 Alpine |
 | Package manager | pnpm 11.3.0 |
 | Video extraction | yt-dlp |
-| Image extraction | gallery-dl, page metadata, Cheerio |
+| Image extraction | instaloader, gallery-dl, page metadata, Cheerio |
 | Media processing | ffmpeg |
 | Deployment | Docker, Docker Compose, Coolify |
 
 ## Quick start with Docker Compose
 
 Docker is the recommended installation method because the image already
-contains `yt-dlp`, `gallery-dl`, `ffmpeg`, Python, and runtime dependencies.
+contains `yt-dlp`, `instaloader`, `gallery-dl`, `ffmpeg`, Python, and runtime
+dependencies.
 
 ```bash
 git clone https://github.com/ffigoperdana/video-downloader.git
@@ -141,6 +145,7 @@ builds the Docker image, starts it, and waits for the container health check.
 | `PORT` | `7860` in Docker | Next.js listening port |
 | `YTDLP_BINARY_PATH` | `/usr/local/bin/yt-dlp` in Docker | Custom yt-dlp path |
 | `GALLERY_DL_BINARY_PATH` | `/usr/bin/gallery-dl` in Docker | Custom gallery-dl path |
+| `PYTHON_BINARY_PATH` | `/usr/bin/python3` in Docker | Custom Python path for Instaloader fallback |
 | `YTDLP_COOKIES_PATH` | empty | Netscape cookies file path for YouTube |
 | `YTDLP_COOKIES_BASE64` | empty | Base64 Netscape cookies for YouTube |
 | `GALLERY_DL_COOKIES_PATH` | empty | Netscape cookies file path for social platforms |
@@ -195,6 +200,7 @@ Requirements:
 - Node.js 22 or newer
 - pnpm 11
 - yt-dlp
+- instaloader
 - gallery-dl
 - ffmpeg
 
@@ -218,10 +224,10 @@ pnpm build
 ```text
 Browser
   -> platform Server Action validates and normalizes the URL
-  -> yt-dlp, gallery-dl, page metadata, or a public fallback extracts media
+  -> yt-dlp, instaloader, gallery-dl, page metadata, or a public fallback extracts media
   -> /internal/download/* streams video and audio
   -> /internal/media/image proxies image previews and attachments
-  -> /internal/media/video proxies Threads video and supports HTTP Range
+  -> /internal/media/video proxies Threads and Instagram fallback video media
   -> ffmpeg merges streams or converts supported audio to MP3
 ```
 

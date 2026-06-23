@@ -1,7 +1,9 @@
 import YTDlpWrap from "yt-dlp-wrap";
 import { isValidInstagramUrl as validateInstagramUrl } from "@/core/utils/url-validators";
 import {
+  getInstagramMediaAssets,
   getSocialImageAssets,
+  type InstagramMediaAssets,
   type SocialImageAsset,
 } from "./social-image.service";
 
@@ -32,6 +34,8 @@ export interface InstagramEntry {
   index: number;
   /** true = this slide is a video, false = image only */
   isVideo: boolean;
+  /** Direct fallback download URL for video entries extracted outside yt-dlp */
+  downloadPath?: string;
 }
 
 export interface InstagramFormat {
@@ -140,6 +144,23 @@ function mapFormat(f: any): InstagramFormat {
   };
 }
 
+function mapMediaAssetEntries(
+  media: InstagramMediaAssets | null,
+): InstagramEntry[] {
+  return (
+    media?.items.map((item, index) => ({
+      id: `${item.type}-${item.index}`,
+      title: `Slide ${index + 1}`,
+      thumbnail: item.type === "image" ? item.previewPath : "",
+      duration: 0,
+      formats: [],
+      index,
+      isVideo: item.type === "video",
+      downloadPath: item.type === "video" ? item.downloadPath : undefined,
+    })) ?? []
+  );
+}
+
 const IG_HEADERS = [
   "--add-header",
   "User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
@@ -156,6 +177,7 @@ export class InstagramDownloaderService {
     const url = cleanInstagramUrl(rawUrl);
     const mediaType = inferMediaType(url);
     const imagesPromise = getSocialImageAssets(url, "instagram").catch(() => []);
+    const mediaPromise = getInstagramMediaAssets(url).catch(() => null);
 
     // Stories always require login — fail fast with a clear message
     if (mediaType === "story") {
@@ -181,22 +203,29 @@ export class InstagramDownloaderService {
         "instagram:getVideoInfo",
       );
     } catch (error) {
-      const images = await imagesPromise;
-      if (!images.length) throw error;
+      const media = await mediaPromise;
+      const entries = mapMediaAssetEntries(media);
+      const images = media?.images.length ? media.images : await imagesPromise;
+      if (!images.length && !entries.some((entry) => entry.isVideo)) throw error;
       return {
         id: url.split("/").filter(Boolean).at(-1) ?? "",
-        title: "Instagram image post",
+        title: entries.some((entry) => entry.isVideo)
+          ? "Instagram carousel"
+          : "Instagram image post",
         description: "",
-        thumbnail: images[0].previewPath,
+        thumbnail:
+          images[0]?.previewPath ??
+          entries.find((entry) => entry.thumbnail)?.thumbnail ??
+          "",
         duration: 0,
         uploader: "Unknown",
         uploader_id: "",
         timestamp: 0,
         like_count: 0,
         media_type: mediaType,
-        entries: [],
+        entries,
         formats: [],
-        hasNoVideo: true,
+        hasNoVideo: !entries.some((entry) => entry.isVideo),
         images,
       };
     }
@@ -211,11 +240,14 @@ export class InstagramDownloaderService {
 
     // Carousel / playlist
     if (raw._type === "playlist" && Array.isArray(raw.entries)) {
+      const media = await mediaPromise;
+      let videoAssetIndex = 0;
       const entries: InstagramEntry[] = raw.entries
         .filter((e: any) => e != null)
         .map((e: any, i: number) => {
           const entryFormats = e.formats ?? [];
           const isVideo = isVideoEntry(e);
+          const fallbackVideo = isVideo ? media?.videos[videoAssetIndex++] : null;
           return {
             id: e.id ?? `entry_${i}`,
             title: e.title ?? `Slide ${i + 1}`,
@@ -233,12 +265,18 @@ export class InstagramDownloaderService {
               ),
             index: i,
             isVideo,
+            downloadPath: fallbackVideo?.downloadPath,
           };
         });
 
       // Check if ANY entry has video
       const anyVideo = entries.some((e) => e.isVideo);
-      const images = await imagesPromise;
+      const fallbackEntries = mapMediaAssetEntries(media);
+      const finalEntries =
+        !anyVideo && fallbackEntries.some((entry) => entry.isVideo)
+          ? fallbackEntries
+          : entries;
+      const images = media?.images.length ? media.images : await imagesPromise;
 
       return {
         id: raw.id ?? "",
@@ -253,9 +291,9 @@ export class InstagramDownloaderService {
         timestamp: raw.timestamp ?? 0,
         like_count: Number(raw.like_count) || 0,
         media_type: mediaType,
-        entries,
+        entries: finalEntries,
         formats: [],
-        hasNoVideo: !anyVideo,
+        hasNoVideo: !finalEntries.some((entry) => entry.isVideo),
         images,
       };
     }
@@ -267,7 +305,11 @@ export class InstagramDownloaderService {
       .sort((a: InstagramFormat, b: InstagramFormat) => b.quality - a.quality);
 
     const hasVideo = formats.length > 0;
-    const images = await imagesPromise;
+    const media = await mediaPromise;
+    const fallbackEntries = mapMediaAssetEntries(media);
+    const images = media?.images.length ? media.images : await imagesPromise;
+    const shouldUseFallbackCarousel =
+      fallbackEntries.length > 1 && fallbackEntries.some((entry) => entry.isVideo);
 
     return {
       id: raw.id ?? "",
@@ -282,9 +324,12 @@ export class InstagramDownloaderService {
       timestamp: raw.timestamp ?? 0,
       like_count: Number(raw.like_count) || 0,
       media_type: mediaType,
-      entries: [],
+      entries: shouldUseFallbackCarousel ? fallbackEntries : [],
       formats,
-      hasNoVideo: !hasVideo,
+      hasNoVideo:
+        shouldUseFallbackCarousel
+          ? !fallbackEntries.some((entry) => entry.isVideo)
+          : !hasVideo,
       images,
     };
   }

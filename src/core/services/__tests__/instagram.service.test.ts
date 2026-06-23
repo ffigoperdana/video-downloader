@@ -1,6 +1,29 @@
+const mockExecPromise = jest.fn();
+const mockGetInstagramMediaAssets = jest.fn();
+
 jest.mock("yt-dlp-wrap", () => {
   return jest.fn().mockImplementation(() => ({
-    execPromise: jest.fn().mockResolvedValue(JSON.stringify({
+    execPromise: mockExecPromise,
+  }));
+});
+
+jest.mock("../social-image.service", () => ({
+  getInstagramMediaAssets: mockGetInstagramMediaAssets,
+  getSocialImageAssets: jest.fn().mockResolvedValue([
+    {
+      index: 0,
+      extension: "jpg",
+      previewPath: "/internal/media/image?index=0",
+      downloadPath: "/internal/media/image?index=0&download=1",
+    },
+  ]),
+}));
+
+import { InstagramDownloaderService } from "../instagram.service";
+
+describe("InstagramDownloaderService", () => {
+  beforeEach(() => {
+    mockExecPromise.mockResolvedValue(JSON.stringify({
       _type: "playlist",
       id: "carousel",
       title: "Mixed carousel",
@@ -20,24 +43,14 @@ jest.mock("yt-dlp-wrap", () => {
           formats: [],
         },
       ],
-    })),
-  }));
-});
+    }));
+    mockGetInstagramMediaAssets.mockResolvedValue(null);
+  });
 
-jest.mock("../social-image.service", () => ({
-  getSocialImageAssets: jest.fn().mockResolvedValue([
-    {
-      index: 0,
-      extension: "jpg",
-      previewPath: "/internal/media/image?index=0",
-      downloadPath: "/internal/media/image?index=0&download=1",
-    },
-  ]),
-}));
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
-import { InstagramDownloaderService } from "../instagram.service";
-
-describe("InstagramDownloaderService", () => {
   it("marks mixed carousel video slides as video even when entry formats are missing", async () => {
     const service = new InstagramDownloaderService();
 
@@ -48,6 +61,73 @@ describe("InstagramDownloaderService", () => {
       entries: [
         { id: "image-slide", isVideo: false },
         { id: "video-slide", isVideo: true },
+      ],
+      images: [{ index: 0 }],
+    });
+  });
+
+  it("uses mixed-media fallback when a carousel starts with video but yt-dlp entries look image-only", async () => {
+    mockExecPromise.mockResolvedValue(JSON.stringify({
+      _type: "playlist",
+      id: "carousel",
+      title: "Fallback carousel",
+      entries: [
+        {
+          id: "thumb-1",
+          thumbnail: "https://instagram.example/thumb1.jpg",
+          url: "https://instagram.example/thumb1.jpg",
+          formats: [],
+        },
+        {
+          id: "image-slide",
+          thumbnail: "https://instagram.example/image.jpg",
+          url: "https://instagram.example/image.jpg",
+          formats: [],
+        },
+      ],
+    }));
+    mockGetInstagramMediaAssets.mockResolvedValue({
+      images: [
+        {
+          index: 0,
+          extension: "jpg",
+          previewPath: "/internal/media/image?index=0",
+          downloadPath: "/internal/media/image?index=0&download=1",
+        },
+      ],
+      videos: [
+        {
+          index: 0,
+          downloadPath: "/internal/media/video?platform=instagram&index=0",
+        },
+      ],
+      items: [
+        {
+          type: "video",
+          index: 0,
+          downloadPath: "/internal/media/video?platform=instagram&index=0",
+        },
+        {
+          type: "image",
+          index: 0,
+          previewPath: "/internal/media/image?index=0",
+          downloadPath: "/internal/media/image?index=0&download=1",
+        },
+      ],
+    });
+
+    const service = new InstagramDownloaderService();
+
+    await expect(
+      service.getVideoInfo("https://www.instagram.com/p/ABC123/"),
+    ).resolves.toMatchObject({
+      hasNoVideo: false,
+      entries: [
+        {
+          isVideo: true,
+          downloadPath: "/internal/media/video?platform=instagram&index=0",
+        },
+        { isVideo: false },
       ],
       images: [{ index: 0 }],
     });
