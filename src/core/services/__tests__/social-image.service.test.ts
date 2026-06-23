@@ -1,8 +1,15 @@
+const mockTiktokApiDownloader = jest.fn();
+
+jest.mock("@tobyg74/tiktok-api-dl", () => ({
+  Downloader: mockTiktokApiDownloader,
+}));
+
 import {
   decodeSnapSaveResponse,
   extractFacebookEmbeddedImageUrls,
   extractInstaloaderMedia,
   extractSocialImages,
+  extractTiktokApiDlImageUrls,
   extractThreadsMedia,
   extractTikwmImageUrls,
   isSupportedPostUrl,
@@ -43,6 +50,38 @@ describe("extractTikwmImageUrls", () => {
   });
 });
 
+describe("extractTiktokApiDlImageUrls", () => {
+  it("returns image URLs from a successful tiktok-api-dl image response", () => {
+    expect(
+      extractTiktokApiDlImageUrls({
+        status: "success",
+        result: {
+          type: "image",
+          images: ["https://cdn.example/image-1", "https://cdn.example/image-2"],
+        },
+      }),
+    ).toEqual([
+      "https://cdn.example/image-1",
+      "https://cdn.example/image-2",
+    ]);
+  });
+
+  it("rejects video responses and malformed responses", () => {
+    expect(
+      extractTiktokApiDlImageUrls({
+        status: "success",
+        result: { type: "video", images: ["bad"] },
+      }),
+    ).toEqual([]);
+    expect(
+      extractTiktokApiDlImageUrls({
+        status: "error",
+        result: { type: "image", images: ["bad"] },
+      }),
+    ).toEqual([]);
+  });
+});
+
 describe("extractInstaloaderMedia", () => {
   it("keeps sidecar item order and defaults extensions for Instagram CDN URLs", () => {
     expect(
@@ -76,6 +115,7 @@ describe("extractSocialImages TikTok fallback", () => {
   });
 
   it("keeps TikWM image links without file extensions", async () => {
+    mockTiktokApiDownloader.mockResolvedValue({ status: "error" });
     global.fetch = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
       const target = String(input);
       if (target.includes("tikwm.com/api")) {
@@ -101,6 +141,44 @@ describe("extractSocialImages TikTok fallback", () => {
     ).resolves.toEqual([
       {
         remoteUrl: "https://tikwm.example/get?token=image-token",
+        extension: "jpeg",
+      },
+    ]);
+  });
+
+  it("prefers tiktok-api-dl image links over TikWM links", async () => {
+    mockTiktokApiDownloader.mockResolvedValue({
+      status: "success",
+      result: {
+        type: "image",
+        images: ["https://api-dl.example/get?token=image-token"],
+      },
+    });
+    global.fetch = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      const target = String(input);
+      if (target.includes("tikwm.com/api")) {
+        return {
+          ok: true,
+          json: async () => ({
+            code: 0,
+            data: {
+              images: ["https://tikwm.example/get?token=stale-image-token"],
+            },
+          }),
+        };
+      }
+
+      return {
+        ok: true,
+        text: async () => "<html></html>",
+      };
+    }) as unknown as typeof fetch;
+
+    await expect(
+      extractSocialImages("https://www.tiktok.com/@user/photo/7631797579776380178", "tiktok"),
+    ).resolves.toEqual([
+      {
+        remoteUrl: "https://api-dl.example/get?token=image-token",
         extension: "jpeg",
       },
     ]);

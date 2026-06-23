@@ -177,19 +177,46 @@ function inferVideoExtension(rawUrl: string): string | null {
   return null;
 }
 
+function mediaIdentityKey(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.trim());
+    const hostname = url.hostname.toLowerCase();
+    const pathname = decodeURIComponent(url.pathname).replace(/\/+$/, "");
+    const imageExtension = inferExtension(rawUrl);
+    const videoExtension = inferVideoExtension(rawUrl);
+
+    if (hostname === "pbs.twimg.com") {
+      return `${hostname}${pathname}?format=${url.searchParams.get("format") ?? imageExtension ?? ""}`;
+    }
+
+    if (imageExtension || videoExtension) {
+      return `${hostname}${pathname}`;
+    }
+
+    const params = [...url.searchParams.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&");
+    return `${hostname}${pathname}${params ? `?${params}` : ""}`;
+  } catch {
+    return rawUrl.trim();
+  }
+}
+
 function mergeExtractedImages(images: ExtractedImage[]): ExtractedImage[] {
   const seen = new Set<string>();
   const merged: ExtractedImage[] = [];
 
   for (const image of images) {
-    if (merged.length >= 20 || seen.has(image.remoteUrl)) continue;
+    const key = mediaIdentityKey(image.remoteUrl);
+    if (merged.length >= 20 || seen.has(key)) continue;
     try {
       const parsed = new URL(image.remoteUrl);
       if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
     } catch {
       continue;
     }
-    seen.add(image.remoteUrl);
+    seen.add(key);
     merged.push(image);
   }
 
@@ -204,7 +231,8 @@ function uniqueImages(urls: string[]): ExtractedImage[] {
     if (images.length >= 20) break;
     const url = rawUrl.trim();
     const extension = inferExtension(url);
-    if (!extension || seen.has(url)) continue;
+    const key = mediaIdentityKey(url);
+    if (!extension || seen.has(key)) continue;
 
     try {
       const parsed = new URL(url);
@@ -213,7 +241,7 @@ function uniqueImages(urls: string[]): ExtractedImage[] {
       continue;
     }
 
-    seen.add(url);
+    seen.add(key);
     images.push({ remoteUrl: url, extension });
   }
 
@@ -227,7 +255,8 @@ function uniqueMedia(urls: string[]): ExtractedMedia[] {
   for (const rawUrl of urls) {
     if (media.length >= 40) break;
     const url = rawUrl.trim();
-    if (!url || seen.has(url)) continue;
+    const key = mediaIdentityKey(url);
+    if (!url || seen.has(key)) continue;
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
@@ -239,7 +268,7 @@ function uniqueMedia(urls: string[]): ExtractedMedia[] {
     const videoExtension = inferVideoExtension(url);
     if (!imageExtension && !videoExtension) continue;
 
-    seen.add(url);
+    seen.add(key);
     media.push({
       type: videoExtension ? "video" : "image",
       remoteUrl: url,
@@ -264,14 +293,15 @@ function uniqueExtractedMedia(items: ExtractedMedia[]): ExtractedMedia[] {
   const media: ExtractedMedia[] = [];
 
   for (const item of items) {
-    if (media.length >= 40 || seen.has(item.remoteUrl)) continue;
+    const key = mediaIdentityKey(item.remoteUrl);
+    if (media.length >= 40 || seen.has(key)) continue;
     try {
       const parsed = new URL(item.remoteUrl);
       if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
     } catch {
       continue;
     }
-    seen.add(item.remoteUrl);
+    seen.add(key);
     media.push(item);
   }
 
@@ -284,14 +314,15 @@ function uniqueImagesWithDefault(urls: string[], defaultExtension: string): Extr
   for (const rawUrl of urls) {
     if (images.length >= 20) break;
     const url = rawUrl.trim();
-    if (!url || seen.has(url)) continue;
+    const key = mediaIdentityKey(url);
+    if (!url || seen.has(key)) continue;
     try {
       const parsed = new URL(url);
       if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
     } catch {
       continue;
     }
-    seen.add(url);
+    seen.add(key);
     images.push({
       remoteUrl: url,
       extension: inferExtension(url) ?? defaultExtension,
@@ -489,9 +520,27 @@ interface TikwmPayload {
   };
 }
 
+interface TiktokApiDlPayload {
+  status?: string;
+  result?: {
+    type?: unknown;
+    images?: unknown;
+  };
+}
+
 export function extractTikwmImageUrls(payload: TikwmPayload): string[] {
   if (payload.code !== 0 || !Array.isArray(payload.data?.images)) return [];
   return payload.data.images.filter(
+    (image): image is string => typeof image === "string" && image.length > 0,
+  );
+}
+
+export function extractTiktokApiDlImageUrls(payload: TiktokApiDlPayload): string[] {
+  if (payload.status !== "success" || payload.result?.type !== "image") {
+    return [];
+  }
+  if (!Array.isArray(payload.result.images)) return [];
+  return payload.result.images.filter(
     (image): image is string => typeof image === "string" && image.length > 0,
   );
 }
@@ -512,6 +561,29 @@ async function extractTikTokViaTikwm(sourceUrl: string): Promise<ExtractedImage[
 
   const payload = (await response.json()) as TikwmPayload;
   return uniqueImagesWithDefault(extractTikwmImageUrls(payload), "jpeg");
+}
+
+async function extractTikTokViaTiktokApiDl(sourceUrl: string): Promise<ExtractedImage[]> {
+  if (!/\/photo\/\d+\/?$/i.test(new URL(sourceUrl).pathname)) return [];
+
+  const mod = await import("@tobyg74/tiktok-api-dl");
+  const tiktok = ((mod as any).default ?? mod) as {
+    Downloader?: (
+      url: string,
+      options: { version: "v1" | "v2" | "v3"; showOriginalResponse?: boolean },
+    ) => Promise<TiktokApiDlPayload>;
+  };
+
+  for (const version of ["v1", "v2", "v3"] as const) {
+    const payload = await tiktok.Downloader?.(sourceUrl, {
+      version,
+      showOriginalResponse: false,
+    }).catch(() => null);
+    const images = payload ? extractTiktokApiDlImageUrls(payload) : [];
+    if (images.length) return uniqueImagesWithDefault(images, "jpeg");
+  }
+
+  return [];
 }
 
 function decodeEmbeddedUrl(value: string): string {
@@ -723,28 +795,33 @@ export async function extractInstagramMedia(sourceUrl: string): Promise<{
     galleryResult.status === "fulfilled" ? galleryResult.value : [];
   const pageImages =
     pageResult.status === "fulfilled" ? pageResult.value : [];
-  const orderedItems = instaloader.length ? instaloader : gallery;
 
-  const images = mergeExtractedImages([
-    ...instaloader
-      .filter((item): item is ExtractedMedia & { type: "image" } =>
-        item.type === "image",
+  const primaryItems = instaloader.length ? instaloader : gallery;
+  if (primaryItems.length) {
+    const images = mergeExtractedImages(
+      primaryItems
+        .filter((item): item is ExtractedMedia & { type: "image" } =>
+          item.type === "image",
+        )
+        .map(({ remoteUrl, extension }) => ({ remoteUrl, extension })),
+    );
+    const videos = uniqueExtractedMedia(primaryItems)
+      .filter((item): item is ExtractedMedia & { type: "video" } =>
+        item.type === "video",
       )
-      .map(({ remoteUrl, extension }) => ({ remoteUrl, extension })),
-    ...gallery
-      .filter((item): item is ExtractedMedia & { type: "image" } =>
-        item.type === "image",
-      )
-      .map(({ remoteUrl, extension }) => ({ remoteUrl, extension })),
-    ...pageImages,
-  ]);
-  const videos = uniqueExtractedMedia([...instaloader, ...gallery])
-    .filter((item): item is ExtractedMedia & { type: "video" } =>
-      item.type === "video",
-    )
-    .map(({ remoteUrl, extension }) => ({ remoteUrl, extension }));
+      .map(({ remoteUrl, extension }) => ({ remoteUrl, extension }));
 
-  return { images, videos, items: orderedItems };
+    return { images, videos, items: primaryItems };
+  }
+
+  const images = mergeExtractedImages(pageImages);
+  const items = images.map((image): ExtractedMedia => ({
+    type: "image",
+    remoteUrl: image.remoteUrl,
+    extension: image.extension,
+  }));
+
+  return { images, videos: [], items };
 }
 
 export async function getInstagramMediaAssets(
@@ -825,11 +902,30 @@ export async function extractSocialImages(
     return media.images;
   }
 
+  if (platform === "tiktok") {
+    const [apiResult, tikwmResult, galleryResult, pageResult] =
+      await Promise.allSettled([
+        extractTikTokViaTiktokApiDl(sourceUrl),
+        extractTikTokViaTikwm(sourceUrl),
+        extractWithGalleryDl(sourceUrl),
+        extractPageImages(sourceUrl),
+      ]);
+    const api = apiResult.status === "fulfilled" ? apiResult.value : [];
+    if (api.length) return mergeExtractedImages(api);
+
+    const tikwm = tikwmResult.status === "fulfilled" ? tikwmResult.value : [];
+    if (tikwm.length) return mergeExtractedImages(tikwm);
+
+    const gallery =
+      galleryResult.status === "fulfilled" ? galleryResult.value : [];
+    const page = pageResult.status === "fulfilled" ? pageResult.value : [];
+    return mergeExtractedImages([...gallery, ...page]);
+  }
+
   const tasks: Array<Promise<ExtractedImage[]>> = [
     extractWithGalleryDl(sourceUrl),
     extractPageImages(sourceUrl),
   ];
-  if (platform === "tiktok") tasks.push(extractTikTokViaTikwm(sourceUrl));
   if (platform === "facebook") tasks.push(extractFacebookViaSnapSave(sourceUrl));
 
   const [galleryResult, pageResult, fallbackResult] = await Promise.allSettled(tasks);

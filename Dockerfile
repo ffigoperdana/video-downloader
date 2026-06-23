@@ -4,7 +4,18 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache \
+    libc6-compat \
+    python3 \
+    make \
+    g++ \
+    pkgconfig \
+    cairo-dev \
+    pango-dev \
+    jpeg-dev \
+    giflib-dev \
+    librsvg-dev \
+    pixman-dev
 
 RUN corepack enable && corepack prepare pnpm@11.3.0 --activate
 
@@ -37,7 +48,13 @@ RUN apk add --no-cache \
     curl \
     ca-certificates \
     python3 \
-    py3-pip
+    py3-pip \
+    cairo \
+    pango \
+    jpeg \
+    giflib \
+    librsvg \
+    pixman
 
 RUN python3 -m pip install \
     --no-cache-dir \

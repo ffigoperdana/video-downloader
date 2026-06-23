@@ -67,6 +67,9 @@ media type:
   mixed photo/video metadata.
 - [`gallery-dl`](https://github.com/mikf/gallery-dl) extracts supported image
   posts and carousels.
+- [`@tobyg74/tiktok-api-dl`](https://github.com/TobyG74/tiktok-api-dl)
+  provides an additional TikTok photo/slideshow fallback when TikWM links are
+  stale or incomplete.
 - Open Graph and embedded page metadata provide additional image fallbacks.
 - `ffmpeg` merges YouTube streams and converts supported audio to MP3.
 - Cheerio parses fallback HTML responses.
@@ -74,7 +77,7 @@ media type:
 When local extractors cannot read a public URL, the application may send that
 URL to these external extraction services:
 
-- TikTok photo posts: TikWM
+- TikTok photo posts: tiktok-api-dl, then TikWM
 - Facebook public share links: SnapSave
 - Threads public posts: LoveThreads
 
@@ -91,7 +94,7 @@ private URLs unless you understand the privacy implications.
 | Runtime | Node.js 22 Alpine |
 | Package manager | pnpm 11.3.0 |
 | Video extraction | yt-dlp |
-| Image extraction | instaloader, gallery-dl, page metadata, Cheerio |
+| Image extraction | instaloader, gallery-dl, tiktok-api-dl, page metadata, Cheerio |
 | Media processing | ffmpeg |
 | Deployment | Docker, Docker Compose, Coolify |
 
@@ -99,7 +102,8 @@ private URLs unless you understand the privacy implications.
 
 Docker is the recommended installation method because the image already
 contains `yt-dlp`, `instaloader`, `gallery-dl`, `ffmpeg`, Python, and runtime
-dependencies.
+dependencies. The Node image also installs the native libraries needed by the
+TikTok fallback dependency.
 
 ```bash
 git clone https://github.com/ffigoperdana/video-downloader.git
