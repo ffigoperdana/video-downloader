@@ -338,7 +338,7 @@ export default function LandingPage() {
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-zinc-400">
+        <div className="absolute bottom-8 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1 text-zinc-400 sm:flex">
           <span className="text-xs">scroll</span>
           <div className="w-px h-8 bg-gradient-to-b from-zinc-700 to-transparent" />
         </div>

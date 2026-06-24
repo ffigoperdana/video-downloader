@@ -2,6 +2,7 @@ import YTDlpWrap from "yt-dlp-wrap";
 import { isValidThreadsUrl as validateThreadsUrl } from "@/core/utils/url-validators";
 import {
   getThreadsMediaAssets,
+  type ThreadsMediaAssets,
   type SocialImageAsset,
 } from "./social-image.service";
 
@@ -17,6 +18,7 @@ export interface ThreadsPostInfo {
   media_type: string;
   hasNoVideo: boolean;
   images: SocialImageAsset[];
+  videos: ThreadsMediaAssets["videos"];
 }
 
 export interface ThreadsFormat {
@@ -79,11 +81,15 @@ function mapDirectMediaInfo(
   media: Awaited<ReturnType<typeof getThreadsMediaAssets>>,
 ): ThreadsPostInfo {
   const hasVideo = media.videos.length > 0;
+  const hasImages = media.images.length > 0;
   return {
     id: url.split("/post/")[1] ?? "",
-    title: hasVideo
-      ? `Threads video${urlUsername ? ` by @${urlUsername}` : ""}`
-      : `Threads image post${urlUsername ? ` by @${urlUsername}` : ""}`,
+    title:
+      hasVideo && hasImages
+        ? `Threads mixed post${urlUsername ? ` by @${urlUsername}` : ""}`
+        : hasVideo
+          ? `Threads video${urlUsername ? ` by @${urlUsername}` : ""}`
+          : `Threads image post${urlUsername ? ` by @${urlUsername}` : ""}`,
     description: "",
     thumbnail: media.images[0]?.previewPath ?? "",
     duration: 0,
@@ -103,9 +109,10 @@ function mapDirectMediaInfo(
           },
         ]
       : [],
-    media_type: hasVideo ? "video" : "image",
+    media_type: hasVideo && hasImages ? "mixed" : hasVideo ? "video" : "image",
     hasNoVideo: !hasVideo,
-    images: hasVideo ? [] : media.images,
+    images: media.images,
+    videos: media.videos,
   };
 }
 
@@ -188,6 +195,7 @@ export class ThreadsDownloaderService {
       media_type: hasNoVideo ? "image" : "video",
       hasNoVideo,
       images,
+      videos: [],
     };
   }
 

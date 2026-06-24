@@ -36,6 +36,9 @@ export default function ThreadsDownloader() {
     },
   });
   const loading = isPending || downloading || batch.active;
+  const hasThreadImages = (info?.images.length ?? 0) > 0;
+  const directVideos = info?.videos ?? [];
+  const isMixedPost = Boolean(info && !info.hasNoVideo && hasThreadImages);
 
   const handleFetch = () => {
     setError(null);
@@ -47,12 +50,16 @@ export default function ThreadsDownloader() {
     });
   };
 
-  const handleDownload = () => {
+  const handleDownload = (videoIndex = 0) => {
     if (!info) return;
     setError(null);
     setDownloading(true);
     start(async () => {
-      const r = await prepareThreadsDownloadAction(url, info.title, format);
+      const title =
+        directVideos.length > 1
+          ? `${info.title}-video-${videoIndex + 1}`
+          : info.title;
+      const r = await prepareThreadsDownloadAction(url, title, format, videoIndex);
       if (!r.success || !r.downloadPath) {
         setError(r.error ?? "Failed");
         setDownloading(false);
@@ -60,7 +67,7 @@ export default function ThreadsDownloader() {
       }
       batch.addToQueue([{
         url,
-        title: info.title,
+        title,
         filename: r.filename ?? `threads.${format === "audio" ? "mp3" : "mp4"}`,
         downloadPath: r.downloadPath,
       }]);
@@ -183,7 +190,11 @@ export default function ThreadsDownloader() {
             <div className="min-w-0 space-y-1.5">
               <div className="flex items-center gap-2">
                 <span className="text-xs px-2 py-0.5 rounded-full bg-white/4 border border-white/6 text-zinc-500">
-                  {info.hasNoVideo ? "🖼 Image post" : "🎬 Video"}
+                  {isMixedPost
+                    ? "Mixed media"
+                    : info.hasNoVideo
+                      ? "Image post"
+                      : "Video"}
                 </span>
               </div>
               <p className="text-zinc-300 font-medium text-sm">
@@ -234,6 +245,27 @@ export default function ThreadsDownloader() {
             }}
           />
 
+          {directVideos.length > 1 && (
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">
+                Videos
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {directVideos.map((video) => (
+                  <button
+                    key={video.index}
+                    type="button"
+                    onClick={() => handleDownload(video.index)}
+                    disabled={loading}
+                    className="rounded-xl border border-white/6 px-3 py-2.5 text-xs font-syne font-600 text-zinc-300 hover:border-white/15 hover:bg-white/5 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Download video {video.index + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Download */}
           {!info.hasNoVideo && (
             <div className="space-y-3">
@@ -259,10 +291,10 @@ export default function ThreadsDownloader() {
                 ))}
               </div>
               <button
-              onClick={handleDownload}
-              disabled={loading}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-zinc-100 to-zinc-400 text-black font-syne font-600 text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-xl shadow-zinc-500/20 flex items-center justify-center gap-2"
-            >
+                onClick={() => handleDownload()}
+                disabled={loading}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-zinc-100 to-zinc-400 text-black font-syne font-600 text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shadow-xl shadow-zinc-500/20 flex items-center justify-center gap-2"
+              >
               {downloading ? (
                 <>
                   <Spinner /> Preparing download...

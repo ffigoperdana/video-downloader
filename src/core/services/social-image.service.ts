@@ -984,7 +984,7 @@ export async function extractSocialImages(
   if (platform === "threads") {
     try {
       const media = await extractThreadsMedia(sourceUrl);
-      return media.videos.length ? [] : media.images;
+      return media.images;
     } catch {
       return extractPageImages(sourceUrl);
     }

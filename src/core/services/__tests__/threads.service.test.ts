@@ -93,7 +93,39 @@ describe("ThreadsDownloaderService", () => {
       media_type: "image",
       hasNoVideo: true,
       images: [{ index: 0 }],
+      videos: [],
       uploader_id: "zainalsalamun",
+    });
+    expect(mockExecPromise).not.toHaveBeenCalled();
+  });
+
+  it("keeps direct Threads images when the same post also has video", async () => {
+    mockGetThreadsMediaAssets.mockResolvedValue({
+      images: [
+        {
+          index: 0,
+          extension: "jpg",
+          previewPath: "/internal/media/image?platform=threads&index=0",
+          downloadPath: "/internal/media/image?platform=threads&index=0&download=1",
+        },
+      ],
+      videos: [
+        {
+          index: 0,
+          downloadPath: "/internal/media/video?platform=threads&index=0&download=1",
+        },
+      ],
+    });
+
+    const service = new ThreadsDownloaderService();
+
+    await expect(
+      service.getVideoInfo("https://www.threads.com/@user/post/DZMIXED123"),
+    ).resolves.toMatchObject({
+      media_type: "mixed",
+      hasNoVideo: false,
+      images: [{ index: 0 }],
+      videos: [{ index: 0 }],
     });
     expect(mockExecPromise).not.toHaveBeenCalled();
   });

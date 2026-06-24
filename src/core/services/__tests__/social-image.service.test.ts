@@ -266,6 +266,54 @@ describe("extractThreadsMedia", () => {
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });
+
+  it("keeps Threads image links when LoveThreads returns video too", async () => {
+    const sourceUrl = "https://www.threads.com/@user/post/DZMIXED123";
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "ok",
+        data: `
+          <ul class="download-box">
+            <li>
+              <span class="format-icon"><i class="icon icon-dlvideo"></i></span>
+              <div class="download-items__btn">
+                <a title="Download Video" href="https://dl.snapcdn.app/video.mp4">Download</a>
+              </div>
+            </li>
+            <li>
+              <span class="format-icon"><i class="icon icon-dlimage"></i></span>
+              <div class="photo-option">
+                <option value="https://dl.snapcdn.app/get?token=mixed-image">1080x1080</option>
+              </div>
+            </li>
+          </ul>
+        `,
+      }),
+    }) as unknown as typeof fetch;
+
+    await expect(extractThreadsMedia(sourceUrl)).resolves.toEqual({
+      images: [
+        {
+          remoteUrl: "https://dl.snapcdn.app/get?token=mixed-image",
+          extension: "jpg",
+        },
+      ],
+      videos: [
+        {
+          remoteUrl: "https://dl.snapcdn.app/video.mp4",
+          extension: "mp4",
+        },
+      ],
+    });
+
+    await expect(extractSocialImages(sourceUrl, "threads")).resolves.toEqual([
+      {
+        remoteUrl: "https://dl.snapcdn.app/get?token=mixed-image",
+        extension: "jpg",
+      },
+    ]);
+  });
 });
 
 describe("decodeSnapSaveResponse", () => {
