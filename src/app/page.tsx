@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import LandingNavbar from "@/components/landing-navbar";
+import Navbar from "@/components/navbar";
 
 export const metadata: Metadata = {
   title: "SaveIt — Free Video & Image Downloader",
@@ -243,7 +243,7 @@ const FAQS = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#080808] overflow-x-hidden">
-      <LandingNavbar />
+      <Navbar />
 
       <main id="main-content">
 
