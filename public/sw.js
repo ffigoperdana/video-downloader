@@ -2,15 +2,7 @@ const CACHE_VERSION = "v2";
 const STATIC_CACHE = `saveit-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `saveit-dynamic-${CACHE_VERSION}`;
 
-const PRECACHE_URLS = [
-  "/",
-  "/youtube",
-  "/tiktok",
-  "/instagram",
-  "/facebook",
-  "/twitter",
-  "/threads",
-];
+const PRECACHE_URLS = [];
 
 // Skip download routes — never cache streaming content
 const SKIP_CACHE_PATTERNS = ["/internal/"];
@@ -47,10 +39,10 @@ async function safePut(cacheName, request, response) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(STATIC_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting()),
+    (PRECACHE_URLS.length
+      ? caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS))
+      : Promise.resolve()
+    ).then(() => self.skipWaiting()),
   );
 });
 

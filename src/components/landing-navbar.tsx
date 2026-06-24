@@ -1,12 +1,42 @@
 import Link from "next/link";
 
 const NAV_LINKS = [
-  { href: "/youtube", label: "YouTube" },
-  { href: "/tiktok", label: "TikTok" },
-  { href: "/instagram", label: "Instagram" },
-  { href: "/facebook", label: "Facebook" },
-  { href: "/twitter", label: "X" },
-  { href: "/threads", label: "Threads" },
+  {
+    href: "/youtube",
+    label: "YouTube",
+    accent: "hover:text-red-400 hover:border-red-500/50",
+    dot: "bg-red-500",
+  },
+  {
+    href: "/tiktok",
+    label: "TikTok",
+    accent: "hover:text-pink-400 hover:border-pink-500/50",
+    dot: "bg-pink-500",
+  },
+  {
+    href: "/instagram",
+    label: "Instagram",
+    accent: "hover:text-purple-400 hover:border-purple-500/50",
+    dot: "bg-purple-500",
+  },
+  {
+    href: "/facebook",
+    label: "Facebook",
+    accent: "hover:text-blue-400 hover:border-blue-500/50",
+    dot: "bg-blue-500",
+  },
+  {
+    href: "/twitter",
+    label: "X",
+    accent: "hover:text-sky-400 hover:border-sky-500/50",
+    dot: "bg-sky-500",
+  },
+  {
+    href: "/threads",
+    label: "Threads",
+    accent: "hover:text-zinc-300 hover:border-zinc-400/50",
+    dot: "bg-zinc-400",
+  },
 ];
 
 function Logo() {
@@ -40,11 +70,29 @@ export default function LandingNavbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-3 py-1.5 rounded-xl text-sm font-medium border border-transparent text-zinc-400 hover:text-indigo-300 hover:border-indigo-500/40 transition-all duration-200"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border border-transparent text-zinc-400 ${item.accent} transition-all duration-200`}
               >
-                {item.label}
+                <span className={`w-1.5 h-1.5 rounded-full opacity-40 ${item.dot}`} />
+                <span>{item.label}</span>
               </Link>
             ))}
+            <Link
+              href="/history"
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border border-transparent text-zinc-400 hover:text-indigo-400 hover:border-indigo-500/50 transition-all duration-200"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>History</span>
+            </Link>
           </div>
 
           <details className="relative md:hidden">
@@ -68,11 +116,31 @@ export default function LandingNavbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="block rounded-xl px-4 py-3 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
                 >
-                  {item.label}
+                  <span className={`w-2 h-2 rounded-full ${item.dot}`} />
+                  <span>{item.label}</span>
                 </Link>
               ))}
+              <div className="h-px bg-white/5 my-1" />
+              <Link
+                href="/history"
+                className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>History</span>
+              </Link>
             </div>
           </details>
         </div>
