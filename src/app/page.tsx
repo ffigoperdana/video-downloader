@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Navbar from "@/components/navbar";
+import LandingNavbar from "@/components/landing-navbar";
 
 export const metadata: Metadata = {
   title: "SaveIt — Free Video & Image Downloader",
@@ -243,7 +243,7 @@ const FAQS = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#080808] overflow-x-hidden">
-      <Navbar />
+      <LandingNavbar />
 
       <main id="main-content">
 
@@ -345,7 +345,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── PLATFORM CARDS ── */}
-      <section className="relative px-4 py-24" id="platforms">
+      <section className="content-auto relative px-4 py-24" id="platforms">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16 space-y-3">
             <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-400">
@@ -416,7 +416,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section className="relative px-4 py-24 overflow-hidden">
+      <section className="content-auto relative px-4 py-24 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/8 to-transparent" />
@@ -459,7 +459,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── BENEFITS ── */}
-      <section className="px-4 py-24" id="features">
+      <section className="content-auto px-4 py-24" id="features">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16 space-y-3">
             <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-400">
@@ -489,7 +489,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="px-4 py-24" id="faq">
+      <section className="content-auto px-4 py-24" id="faq">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-16 space-y-3">
             <p className="text-xs font-medium tracking-[0.2em] uppercase text-zinc-400">
@@ -530,7 +530,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FINAL CTA ── */}
-      <section className="px-4 py-24">
+      <section className="content-auto px-4 py-24">
         <div className="max-w-2xl mx-auto text-center space-y-6">
           <div className="relative inline-block">
             <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-indigo-600/20 to-violet-600/20 blur-xl" />

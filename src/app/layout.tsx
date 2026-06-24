@@ -1,19 +1,21 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Syne, DM_Sans } from "next/font/google";
-import PwaInstallPrompt from "@/components/pwa-install-prompt";
-import OfflineIndicator from "@/components/offline-indicator";
+import ClientEnhancements from "@/components/client-enhancements";
 import "./globals.css";
 
 const syne = Syne({
   subsets: ["latin"],
   variable: "--font-syne",
   weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm",
   weight: ["300", "400", "500"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -108,12 +110,15 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="512x512" href="/icons/saveit-icon-512.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <script dangerouslySetInnerHTML={{ __html: SW_REGISTER }} />
+        <Script
+          id="saveit-service-worker"
+          strategy="lazyOnload"
+          dangerouslySetInnerHTML={{ __html: SW_REGISTER }}
+        />
       </head>
       <body className="bg-[#080808] text-white antialiased font-dm">
-        <OfflineIndicator />
         {children}
-        <PwaInstallPrompt />
+        <ClientEnhancements />
       </body>
     </html>
   );

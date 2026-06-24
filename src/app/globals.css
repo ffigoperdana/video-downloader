@@ -114,6 +114,13 @@
   }
 }
 
+@supports (content-visibility: auto) {
+  .content-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 900px;
+  }
+}
+
 /* Page fade in */
 @keyframes fadeUp {
   from {
