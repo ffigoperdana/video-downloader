@@ -1,9 +1,11 @@
 const mockExecPromise = jest.fn();
+const mockExecStream = jest.fn();
 const mockGetSocialImageAssets = jest.fn();
 
 jest.mock("yt-dlp-wrap", () => {
   return jest.fn().mockImplementation(() => ({
     execPromise: mockExecPromise,
+    execStream: mockExecStream,
   }));
 });
 
@@ -22,6 +24,10 @@ describe("TikTokDownloaderService", () => {
   });
 
   beforeEach(() => {
+    mockExecPromise.mockReset();
+    mockExecStream.mockReset();
+    mockGetSocialImageAssets.mockReset();
+    mockExecStream.mockReturnValue({} as NodeJS.ReadableStream);
     mockExecPromise.mockResolvedValue(JSON.stringify({
       id: "7638498219542056210",
       title: "Photo post",
@@ -88,6 +94,22 @@ describe("TikTokDownloaderService", () => {
       headers: { get: () => null },
       url: "https://vt.tiktok.com/ZSCdRjyV2/",
     }) as unknown as typeof fetch;
+    mockGetSocialImageAssets
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          index: 0,
+          extension: "jpeg",
+          previewPath: "/internal/media/image?index=0",
+          downloadPath: "/internal/media/image?index=0&download=1",
+        },
+        {
+          index: 1,
+          extension: "jpeg",
+          previewPath: "/internal/media/image?index=1",
+          downloadPath: "/internal/media/image?index=1&download=1",
+        },
+      ]);
     mockExecPromise.mockRejectedValue(
       new Error(
         "ERROR: Unsupported URL: https://www.tiktok.com/@notzee.e/photo/7631797579776380178?_r=1",
@@ -108,5 +130,23 @@ describe("TikTokDownloaderService", () => {
       "https://www.tiktok.com/@notzee.e/photo/7631797579776380178",
       "tiktok",
     );
+  });
+
+  it("uses full-length video formats instead of TikTok preview covers", () => {
+    const service = new TikTokDownloaderService();
+
+    service.createDownloadStream(
+      "https://www.tiktok.com/@user/video/7638498219542056210?is_from_webapp=1",
+      "nowatermark",
+    );
+
+    const args = mockExecStream.mock.calls[0][0] as string[];
+    const formatArg = args[args.indexOf("-f") + 1];
+
+    expect(args[0]).toBe(
+      "https://www.tiktok.com/@user/video/7638498219542056210",
+    );
+    expect(formatArg).toContain("download");
+    expect(formatArg).not.toContain("randomcover");
   });
 });

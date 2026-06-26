@@ -34,6 +34,37 @@ export interface TikTokFormat {
   hasBoth: boolean;
 }
 
+interface TikTokRawFormat {
+  format_id?: string;
+  ext?: string;
+  resolution?: string;
+  width?: number;
+  height?: number;
+  fps?: number | null;
+  filesize?: number | null;
+  filesize_approx?: number | null;
+  vcodec?: string;
+  acodec?: string;
+  format_note?: string;
+  quality?: number;
+}
+
+interface TikTokRawInfo {
+  id?: string;
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  duration?: number | string;
+  uploader?: string;
+  creator?: string;
+  uploader_id?: string;
+  channel_id?: string;
+  view_count?: number | string;
+  like_count?: number | string;
+  url?: string;
+  formats?: TikTokRawFormat[];
+}
+
 const getBinaryPath = () => process.env.YTDLP_BINARY_PATH ?? "yt-dlp";
 
 /**
@@ -185,9 +216,9 @@ export class TikTokDownloaderService {
       };
     }
 
-    let raw: any;
+    let raw: TikTokRawInfo;
     try {
-      raw = JSON.parse(jsonStr.trim());
+      raw = JSON.parse(jsonStr.trim()) as TikTokRawInfo;
     } catch {
       console.error("[tiktok:getVideoInfo] raw:", jsonStr.slice(0, 300));
       throw new Error("Failed to parse yt-dlp output for TikTok");
@@ -214,9 +245,9 @@ export class TikTokDownloaderService {
     }
 
     const formats: TikTokFormat[] = (raw.formats ?? [])
-      .filter((f: any) => f.vcodec !== "none")
-      .map((f: any) => ({
-        format_id: f.format_id,
+      .filter((f) => f.vcodec !== "none")
+      .map((f) => ({
+        format_id: f.format_id ?? "",
         ext: f.ext ?? "mp4",
         resolution:
           f.resolution ??
@@ -226,9 +257,9 @@ export class TikTokDownloaderService {
         vcodec: f.vcodec ?? "none",
         acodec: f.acodec ?? "none",
         format_note: f.format_note ?? "",
-        quality: f.quality ?? 0,
+        quality: Number(f.quality) || 0,
         // TikTok: if acodec is not "none" the file has audio too
-        hasBoth: f.acodec && f.acodec !== "none",
+        hasBoth: Boolean(f.acodec && f.acodec !== "none"),
       }))
       .sort((a: TikTokFormat, b: TikTokFormat) => b.quality - a.quality);
 
@@ -269,9 +300,9 @@ export class TikTokDownloaderService {
     const url = cleanTikTokUrl(rawUrl);
 
     // TikTok yt-dlp format selectors:
-    // "download"          = no-watermark MP4 (most reliable)
-    // "h264_540p_*"       = specific resolution variants
-    // bestvideo+bestaudio = may give watermarked version
+    // "download" / "h264_*_download" = full-length MP4 variants.
+    // Avoid "randomcover" here: TikTok can expose it as a short preview/cover,
+    // which makes long videos download as only the first few seconds.
     // For audio: bestaudio
     let formatArg: string;
     switch (variant) {
@@ -279,15 +310,12 @@ export class TikTokDownloaderService {
         formatArg = "bestaudio/best";
         break;
       case "watermark":
-        // play_addr / randomcover = the in-app playback URL which has TikTok watermark
         formatArg =
           "h264_540p_download/h264_360p_download/download/best[ext=mp4]/best";
         break;
       default: // nowatermark
-        // "h264_*_randomcover" formats = no watermark (just the raw video file)
-        // "download" on some regions still has watermark, so prefer randomcover first
         formatArg =
-          "h264_1080p_randomcover/h264_720p_randomcover/h264_540p_randomcover/h264_360p_randomcover/best[ext=mp4]/best";
+          "h264_1080p_download/h264_720p_download/h264_540p_download/h264_360p_download/download/best[ext=mp4]/best";
     }
 
     const audioArgs =
