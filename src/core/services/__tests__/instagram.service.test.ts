@@ -132,4 +132,51 @@ describe("InstagramDownloaderService", () => {
       images: [{ index: 0 }],
     });
   });
+
+  it("does not classify a Reel cover image as an image-only post", async () => {
+    mockGetInstagramMediaAssets.mockResolvedValue({
+      images: [
+        {
+          index: 0,
+          extension: "jpg",
+          previewPath: "/internal/media/image?index=0",
+          downloadPath: "/internal/media/image?index=0&download=1",
+        },
+      ],
+      videos: [],
+      items: [
+        {
+          type: "image",
+          index: 0,
+          previewPath: "/internal/media/image?index=0",
+          downloadPath: "/internal/media/image?index=0&download=1",
+        },
+      ],
+    });
+    mockExecPromise.mockResolvedValue(JSON.stringify({
+      id: "Dax-0hWjdLK",
+      title: "A public Reel",
+      ext: "mp4",
+      url: "https://cdn.instagram.example/reel.mp4",
+      formats: [],
+    }));
+
+    const service = new InstagramDownloaderService();
+    const result = await service.getVideoInfo(
+      "https://www.instagram.com/reel/Dax-0hWjdLK/?igsh=aHIweXE2MnoweG56",
+    );
+
+    expect(mockExecPromise).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        "https://www.instagram.com/reel/Dax-0hWjdLK/",
+        "-J",
+      ]),
+    );
+    expect(result).toMatchObject({
+      id: "Dax-0hWjdLK",
+      media_type: "reel",
+      hasNoVideo: false,
+      images: [],
+    });
+  });
 });

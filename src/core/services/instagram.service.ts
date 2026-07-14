@@ -192,11 +192,20 @@ export class InstagramDownloaderService {
 
     const media = await mediaPromise;
     const mediaEntries = mapMediaAssetEntries(media);
-    if (media && (media.items.length || media.images.length)) {
-      const hasVideo = mediaEntries.some((entry) => entry.isVideo);
+    const hasMediaVideo = mediaEntries.some((entry) => entry.isVideo);
+    // Instaloader/gallery-dl can return a Reel's cover image before exposing its
+    // video URL. Do not let that image-only fallback hide the actual Reel from
+    // yt-dlp, which is the more reliable source for a single Reel video.
+    const shouldInspectReelWithYtDlp = mediaType === "reel" && !hasMediaVideo;
+
+    if (
+      media &&
+      (media.items.length || media.images.length) &&
+      !shouldInspectReelWithYtDlp
+    ) {
       return {
         id: url.split("/").filter(Boolean).at(-1) ?? "",
-        title: hasVideo ? "Instagram carousel" : "Instagram image post",
+        title: hasMediaVideo ? "Instagram carousel" : "Instagram image post",
         description: "",
         thumbnail:
           media.images[0]?.previewPath ??
@@ -210,7 +219,7 @@ export class InstagramDownloaderService {
         media_type: mediaType,
         entries: mediaEntries,
         formats: [],
-        hasNoVideo: !hasVideo,
+        hasNoVideo: !hasMediaVideo,
         images: media.images,
       };
     }
@@ -304,6 +313,11 @@ export class InstagramDownloaderService {
           ? fallbackEntries
           : entries;
       const images = media?.images.length ? media.images : await imagesPromise;
+      // A Reel cover can be discovered as an image by fallback extractors. Once
+      // yt-dlp confirms video media, do not present that cover as a separately
+      // downloadable image.
+      const displayImages =
+        mediaType === "reel" && anyVideo && !hasMediaVideo ? [] : images;
 
       return {
         id: raw.id ?? "",
@@ -321,7 +335,7 @@ export class InstagramDownloaderService {
         entries: finalEntries,
         formats: [],
         hasNoVideo: !finalEntries.some((entry) => entry.isVideo),
-        images,
+        images: displayImages,
       };
     }
 
@@ -331,11 +345,15 @@ export class InstagramDownloaderService {
       .map(mapFormat)
       .sort((a: InstagramFormat, b: InstagramFormat) => b.quality - a.quality);
 
-    const hasVideo = formats.length > 0;
+    // Some Instagram extractor responses provide a direct MP4 URL without a
+    // populated formats array. Treat that response as video too.
+    const hasVideo = formats.length > 0 || isVideoEntry(raw);
     const fallbackEntries = mapMediaAssetEntries(media);
     const images = media?.images.length ? media.images : await imagesPromise;
     const shouldUseFallbackCarousel =
       fallbackEntries.length > 1 && fallbackEntries.some((entry) => entry.isVideo);
+    const displayImages =
+      mediaType === "reel" && hasVideo && !hasMediaVideo ? [] : images;
 
     return {
       id: raw.id ?? "",
@@ -356,7 +374,7 @@ export class InstagramDownloaderService {
         shouldUseFallbackCarousel
           ? !fallbackEntries.some((entry) => entry.isVideo)
           : !hasVideo,
-      images,
+      images: displayImages,
     };
   }
 

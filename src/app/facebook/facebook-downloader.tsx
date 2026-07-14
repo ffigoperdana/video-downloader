@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import DownloaderShell from "@/components/downloader-shell";
 import Spinner from "@/components/ui/spinner";
+import SmartUrlInput from "@/components/smart-url-input";
 import UrlValidationError from "@/components/url-validation-error";
 import ImageMediaGallery from "@/components/image-media-gallery";
 import BatchProgress from "@/components/batch-progress";
@@ -44,6 +45,12 @@ export default function FacebookDownloader() {
     },
   });
   const loading = isPending || downloading || batch.active;
+
+  const handleUrlChange = (nextUrl: string) => {
+    setUrl(nextUrl);
+    setError(null);
+    setInfo(null);
+  };
 
   const handleFetch = () => {
     setError(null);
@@ -119,34 +126,18 @@ export default function FacebookDownloader() {
       </div>
 
       {/* Input */}
-      <div className="relative group">
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/10 to-blue-600/10 opacity-0 group-focus-within:opacity-100 blur-xl transition-opacity pointer-events-none" />
-        <div className="relative flex gap-2 glass rounded-2xl p-2 border border-white/6 group-focus-within:border-blue-500/30 transition-colors">
-          <input
-            type="url"
-            placeholder="Paste Facebook URL..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) =>
-              e.key === "Enter" && !loading && url.trim() && handleFetch()
-            }
-            className="flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none"
-          />
-          <button
-            onClick={handleFetch}
-            disabled={loading || !url.trim()}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-syne font-600 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity shadow-lg shadow-blue-500/20 flex-shrink-0"
-          >
-            {isPending && !downloading ? (
-              <span className="flex items-center gap-1.5">
-                <Spinner /> Fetching
-              </span>
-            ) : (
-              "Fetch"
-            )}
-          </button>
-        </div>
-      </div>
+      <SmartUrlInput
+        platformName="Facebook"
+        placeholder="Paste Facebook URL..."
+        value={url}
+        onValueChange={handleUrlChange}
+        onFetch={handleFetch}
+        disabled={loading}
+        fetching={isPending && !downloading}
+        glowClassName="from-blue-500/10 to-blue-600/10"
+        focusBorderClassName="group-focus-within:border-blue-500/30"
+        fetchButtonClassName="bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-blue-500/20"
+      />
 
       <p className="text-xs text-zinc-700 text-center">
         facebook.com · fb.watch · Public content only
