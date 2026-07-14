@@ -1,4 +1,7 @@
 import YTDlpWrap from "yt-dlp-wrap";
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { isValidInstagramUrl as validateInstagramUrl } from "@/core/utils/url-validators";
 import {
   getInstagramMediaAssets,
@@ -50,6 +53,30 @@ export interface InstagramFormat {
 }
 
 const getBinaryPath = () => process.env.YTDLP_BINARY_PATH ?? "yt-dlp";
+let generatedInstagramCookiesPath: string | null = null;
+
+/**
+ * Instagram often returns a Reel cover to anonymous requests while withholding
+ * the actual video stream. Reuse the shared social cookie secret for yt-dlp,
+ * with an Instagram-only secret available when a separate session is desired.
+ */
+function getInstagramCookieArgs(): string[] {
+  const configuredPath = process.env.INSTAGRAM_COOKIES_PATH?.trim();
+  if (configuredPath) return ["--cookies", configuredPath];
+
+  const encodedCookies =
+    process.env.INSTAGRAM_COOKIES_BASE64?.trim() ||
+    process.env.SOCIAL_COOKIES_BASE64?.trim();
+  if (!encodedCookies) return [];
+
+  generatedInstagramCookiesPath ??= join(tmpdir(), "instagram-cookies.txt");
+  writeFileSync(
+    generatedInstagramCookiesPath,
+    Buffer.from(encodedCookies, "base64"),
+    { mode: 0o600 },
+  );
+  return ["--cookies", generatedInstagramCookiesPath];
+}
 
 export function cleanInstagramUrl(rawUrl: string): string {
   try {
@@ -170,6 +197,14 @@ const IG_HEADERS = [
   "User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 ];
 
+function reelVideoUnavailableError(cause: unknown): Error {
+  const detail = cause instanceof Error ? cause.message : String(cause ?? "");
+  console.warn("[instagram:getVideoInfo] Reel video unavailable:", detail);
+  return new Error(
+    "Instagram confirmed this link is a Reel, but did not expose its downloadable video stream. Refresh INSTAGRAM_COOKIES_BASE64 (or SOCIAL_COOKIES_BASE64) with a current Instagram cookies.txt, then try Fetch again.",
+  );
+}
+
 export class InstagramDownloaderService {
   private ytDlp: YTDlpWrap;
 
@@ -203,6 +238,10 @@ export class InstagramDownloaderService {
       (media.items.length || media.images.length) &&
       !shouldInspectReelWithYtDlp
     ) {
+      // The image returned alongside a direct Reel video is its cover. Keep it
+      // for the header thumbnail, but never show it as an image-only download.
+      const displayImages =
+        mediaType === "reel" && hasMediaVideo ? [] : media.images;
       return {
         id: url.split("/").filter(Boolean).at(-1) ?? "",
         title: hasMediaVideo ? "Instagram carousel" : "Instagram image post",
@@ -220,7 +259,7 @@ export class InstagramDownloaderService {
         entries: mediaEntries,
         formats: [],
         hasNoVideo: !hasMediaVideo,
-        images: media.images,
+        images: displayImages,
       };
     }
 
@@ -235,7 +274,10 @@ export class InstagramDownloaderService {
           "--no-check-certificate",
           "--extractor-retries",
           "2",
+          ...getInstagramCookieArgs(),
           ...IG_HEADERS,
+          "--add-header",
+          "Referer:https://www.instagram.com/",
         ]),
         45_000,
         "instagram:getVideoInfo",
@@ -243,6 +285,12 @@ export class InstagramDownloaderService {
     } catch (error) {
       const entries = mapMediaAssetEntries(media);
       const images = media?.images.length ? media.images : await imagesPromise;
+      const hasFallbackVideo = entries.some((entry) => entry.isVideo);
+      // A Reel is always video. Returning its cover as an image-only post hides
+      // the real extractor failure and gives users a false successful result.
+      if (mediaType === "reel" && !hasFallbackVideo) {
+        throw reelVideoUnavailableError(error);
+      }
       if (!images.length && !entries.some((entry) => entry.isVideo)) throw error;
       return {
         id: url.split("/").filter(Boolean).at(-1) ?? "",
@@ -319,6 +367,12 @@ export class InstagramDownloaderService {
       const displayImages =
         mediaType === "reel" && anyVideo && !hasMediaVideo ? [] : images;
 
+      if (mediaType === "reel" && !finalEntries.some((entry) => entry.isVideo)) {
+        throw reelVideoUnavailableError(
+          new Error("yt-dlp returned no video entries for this Reel"),
+        );
+      }
+
       return {
         id: raw.id ?? "",
         title: raw.title ?? raw.description?.slice(0, 80) ?? "Instagram Post",
@@ -354,6 +408,12 @@ export class InstagramDownloaderService {
       fallbackEntries.length > 1 && fallbackEntries.some((entry) => entry.isVideo);
     const displayImages =
       mediaType === "reel" && hasVideo && !hasMediaVideo ? [] : images;
+
+    if (mediaType === "reel" && !hasVideo && !shouldUseFallbackCarousel) {
+      throw reelVideoUnavailableError(
+        new Error("yt-dlp returned no video formats for this Reel"),
+      );
+    }
 
     return {
       id: raw.id ?? "",
@@ -392,6 +452,7 @@ export class InstagramDownloaderService {
       "-",
       "--no-warnings",
       "--no-check-certificate",
+      ...getInstagramCookieArgs(),
       ...IG_HEADERS,
       "--add-header",
       "Referer:https://www.instagram.com/",

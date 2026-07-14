@@ -658,15 +658,116 @@ async function extractTikTokViaTiktokApiDl(sourceUrl: string): Promise<Extracted
 }
 
 function decodeEmbeddedUrl(value: string): string {
-  try {
-    return JSON.parse(`"${value}"`);
-  } catch {
-    return value
-      .replaceAll("\\/", "/")
-      .replaceAll("\\u0025", "%")
-      .replaceAll("\\u0026", "&")
-      .replaceAll("&amp;", "&");
+  let decoded = value;
+  // The embed payload nests JSON inside a JSON string, which means a URL can
+  // arrive double-escaped (for example `https:\\\\/\\\\/…\\\\u0026…`).
+  // Decode repeatedly, but cap it so malformed markup cannot spin forever.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const next = JSON.parse(`"${decoded}"`);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      break;
+    }
   }
+
+  return decoded
+    .replaceAll("\\/", "/")
+    .replaceAll("\\u0025", "%")
+    .replaceAll("\\u0026", "&")
+    .replaceAll("&amp;", "&");
+}
+
+function isInstagramCdnUrl(rawUrl: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(rawUrl);
+    if (protocol !== "https:") return false;
+    const host = hostname.toLowerCase();
+    return (
+      host === "instagram.com" ||
+      host.endsWith(".instagram.com") ||
+      host === "cdninstagram.com" ||
+      host.endsWith(".cdninstagram.com") ||
+      host === "fbcdn.net" ||
+      host.endsWith(".fbcdn.net")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Instagram's public post response usually exposes only the cover in
+ * `og:image`. Its embed response still carries the progressive MP4 in an
+ * escaped `video_url` field. Keep this parser deliberately narrow: arbitrary
+ * caption text must not become a server-side media URL.
+ */
+export function extractInstagramEmbedVideoUrls(html: string): string[] {
+  const $ = cheerio.load(html);
+  const candidates: string[] = [];
+
+  $(
+    'meta[property="og:video"], meta[property="og:video:secure_url"], meta[name="twitter:player:stream"]',
+  ).each((_, element) => {
+    const content = $(element).attr("content");
+    if (content) candidates.push(content);
+  });
+
+  // Embed responses put the media object inside an escaped JSON string, while
+  // a few older responses use regular JSON. Support both forms of quotation.
+  const videoUrlPattern =
+    /\\?"(?:video_url|playable_url|progressive_download_url)\\?"\s*:\s*\\?"([\s\S]*?)\\?"/g;
+  for (const match of html.matchAll(videoUrlPattern)) {
+    candidates.push(decodeEmbeddedUrl(match[1]));
+  }
+
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const decoded = decodeEmbeddedUrl(candidate);
+    // Progressive CDN URLs do not consistently retain a .mp4 suffix. The
+    // surrounding key guarantees this is a video field, so a validated CDN
+    // URL is enough and the caller defaults its filename to .mp4.
+    if (!isInstagramCdnUrl(decoded)) {
+      return false;
+    }
+
+    const key = mediaIdentityKey(decoded);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function extractInstagramViaEmbed(sourceUrl: string): Promise<ExtractedMedia[]> {
+  const source = new URL(sourceUrl);
+  const pathname = source.pathname.replace(/\/+$/, "");
+  if (!/^\/(?:p|reel|reels|tv)\/[^/]+$/i.test(pathname)) return [];
+
+  const cookie = getCookieHeader(sourceUrl);
+  const response = await fetch(
+    `https://www.instagram.com${pathname}/embed/captioned/`,
+    {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1",
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.8",
+        Referer: sourceUrl,
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(20_000),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Instagram embed returned HTTP ${response.status}`);
+  }
+
+  return extractInstagramEmbedVideoUrls(await response.text()).map((remoteUrl) => ({
+    type: "video" as const,
+    remoteUrl,
+    extension: inferVideoExtension(remoteUrl) ?? "mp4",
+  }));
 }
 
 function isFacebookContentImage(rawUrl: string): boolean {
@@ -890,6 +991,40 @@ export async function extractInstagramMedia(sourceUrl: string): Promise<{
     pageResult.status === "fulfilled" ? pageResult.value : [];
 
   const primaryItems = instaloader.length ? instaloader : gallery;
+  const isReel = /\/reels?\/[^/?#]+/i.test(new URL(sourceUrl).pathname);
+
+  // The normal public page deliberately exposes only a cover image for some
+  // Reels. In that case, query the public embed payload before reporting an
+  // image-only post. It contains the same signed, progressive MP4 used by the
+  // Instagram embed player.
+  if (isReel && !primaryItems.some((item) => item.type === "video")) {
+    const embedItems = await extractInstagramViaEmbed(sourceUrl).catch(() => []);
+    if (embedItems.length) {
+      const coverItems = primaryItems.length
+        ? primaryItems
+        : pageImages.map((image): ExtractedMedia => ({
+            type: "image",
+            remoteUrl: image.remoteUrl,
+            extension: image.extension,
+          }));
+      const images = mergeExtractedImages(
+        coverItems
+          .filter((item): item is ExtractedMedia & { type: "image" } =>
+            item.type === "image",
+          )
+          .map(({ remoteUrl, extension }) => ({ remoteUrl, extension })),
+      );
+      const videos = embedItems.map(({ remoteUrl, extension }) => ({
+        remoteUrl,
+        extension,
+      }));
+
+      // Preserve the cover separately for the result header, but expose only
+      // the actual video as a downloadable Reel item.
+      return { images, videos, items: embedItems };
+    }
+  }
+
   if (primaryItems.length) {
     const images = mergeExtractedImages(
       primaryItems

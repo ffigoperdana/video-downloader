@@ -153,7 +153,8 @@ builds the Docker image, starts it, and waits for the container health check.
 | `YTDLP_COOKIES_PATH` | empty | Netscape cookies file path for YouTube |
 | `YTDLP_COOKIES_BASE64` | empty | Base64 Netscape cookies for YouTube |
 | `GALLERY_DL_COOKIES_PATH` | empty | Netscape cookies file path for social platforms |
-| `SOCIAL_COOKIES_BASE64` | empty | Base64 Netscape cookies for Instagram, Facebook, and TikTok |
+| `SOCIAL_COOKIES_BASE64` | empty | Base64 Netscape cookies for Instagram, Facebook, and TikTok; also used by Instagram's yt-dlp fallback |
+| `INSTAGRAM_COOKIES_BASE64` | empty | Optional dedicated Base64 Netscape cookies for Instagram. Overrides the Instagram entries in `SOCIAL_COOKIES_BASE64` for yt-dlp extraction. |
 
 ### Creating cookie secrets on Windows
 

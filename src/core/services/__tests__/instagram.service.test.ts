@@ -49,6 +49,9 @@ describe("InstagramDownloaderService", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    delete process.env.INSTAGRAM_COOKIES_PATH;
+    delete process.env.INSTAGRAM_COOKIES_BASE64;
+    delete process.env.SOCIAL_COOKIES_BASE64;
   });
 
   it("marks mixed carousel video slides as video even when entry formats are missing", async () => {
@@ -178,5 +181,126 @@ describe("InstagramDownloaderService", () => {
       hasNoVideo: false,
       images: [],
     });
+  });
+
+  it("uses a direct embed Reel video before trying yt-dlp and keeps its cover out of image downloads", async () => {
+    mockGetInstagramMediaAssets.mockResolvedValue({
+      images: [
+        {
+          index: 0,
+          extension: "jpg",
+          previewPath: "/internal/media/image?index=0",
+          downloadPath: "/internal/media/image?index=0&download=1",
+        },
+      ],
+      videos: [
+        {
+          index: 0,
+          downloadPath: "/internal/media/video?platform=instagram&index=0&download=1",
+        },
+      ],
+      items: [
+        {
+          type: "video",
+          index: 0,
+          downloadPath: "/internal/media/video?platform=instagram&index=0&download=1",
+        },
+      ],
+    });
+
+    const service = new InstagramDownloaderService();
+    const result = await service.getVideoInfo(
+      "https://www.instagram.com/reel/Dax-0hWjdLK/",
+    );
+
+    expect(mockExecPromise).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      media_type: "reel",
+      hasNoVideo: false,
+      images: [],
+      entries: [
+        {
+          isVideo: true,
+          downloadPath: "/internal/media/video?platform=instagram&index=0&download=1",
+        },
+      ],
+    });
+  });
+
+  it("uses the dedicated Instagram cookie path for yt-dlp Reel extraction", async () => {
+    process.env.INSTAGRAM_COOKIES_PATH = "/run/secrets/instagram-cookies.txt";
+    mockGetInstagramMediaAssets.mockResolvedValue({
+      images: [],
+      videos: [],
+      items: [],
+    });
+    mockExecPromise.mockResolvedValue(JSON.stringify({
+      id: "Dax-0hWjdLK",
+      ext: "mp4",
+      url: "https://cdn.instagram.example/reel.mp4",
+      formats: [],
+    }));
+
+    const service = new InstagramDownloaderService();
+    await service.getVideoInfo("https://www.instagram.com/reel/Dax-0hWjdLK/");
+
+    expect(mockExecPromise).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        "--cookies",
+        "/run/secrets/instagram-cookies.txt",
+      ]),
+    );
+  });
+
+  it("falls back to the shared social cookies when the dedicated value is empty", async () => {
+    process.env.INSTAGRAM_COOKIES_BASE64 = "";
+    process.env.SOCIAL_COOKIES_BASE64 = Buffer.from("# Netscape HTTP Cookie File").toString("base64");
+    mockGetInstagramMediaAssets.mockResolvedValue({
+      images: [],
+      videos: [],
+      items: [],
+    });
+    mockExecPromise.mockResolvedValue(JSON.stringify({
+      id: "Dax-0hWjdLK",
+      ext: "mp4",
+      url: "https://cdn.instagram.example/reel.mp4",
+      formats: [],
+    }));
+
+    const service = new InstagramDownloaderService();
+    await service.getVideoInfo("https://www.instagram.com/reel/Dax-0hWjdLK/");
+
+    expect(mockExecPromise).toHaveBeenCalledWith(
+      expect.arrayContaining(["--cookies", expect.stringContaining("instagram-cookies.txt")]),
+    );
+  });
+
+  it("surfaces a Reel extraction failure instead of presenting its cover as an image post", async () => {
+    mockGetInstagramMediaAssets.mockResolvedValue({
+      images: [
+        {
+          index: 0,
+          extension: "jpg",
+          previewPath: "/internal/media/image?index=0",
+          downloadPath: "/internal/media/image?index=0&download=1",
+        },
+      ],
+      videos: [],
+      items: [
+        {
+          type: "image",
+          index: 0,
+          previewPath: "/internal/media/image?index=0",
+          downloadPath: "/internal/media/image?index=0&download=1",
+        },
+      ],
+    });
+    mockExecPromise.mockRejectedValue(new Error("Instagram login required"));
+
+    const service = new InstagramDownloaderService();
+
+    await expect(
+      service.getVideoInfo("https://www.instagram.com/reel/Dax-0hWjdLK/"),
+    ).rejects.toThrow("Instagram confirmed this link is a Reel");
   });
 });

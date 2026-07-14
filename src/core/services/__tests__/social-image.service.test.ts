@@ -7,6 +7,7 @@ jest.mock("@tobyg74/tiktok-api-dl", () => ({
 import {
   decodeSnapSaveResponse,
   extractFacebookEmbeddedImageUrls,
+  extractInstagramEmbedVideoUrls,
   extractInstaloaderMedia,
   extractSocialImages,
   extractTiktokApiDlImageUrls,
@@ -102,6 +103,34 @@ describe("extractInstaloaderMedia", () => {
         remoteUrl: "https://instagram.example/image?token=2",
         extension: "jpg",
       },
+    ]);
+  });
+});
+
+describe("extractInstagramEmbedVideoUrls", () => {
+  it("reads an escaped progressive Reel URL when the normal post page only has a cover", () => {
+    const html = String.raw`
+      <meta property="og:image" content="https://scontent.cdninstagram.com/cover.jpg" />
+      <script>
+        {\"video_url\":\"https:\\\/\\\/instagram.fcgk12-2.fna.fbcdn.net\\\/o1\\\/v\\\/reel-stream?token=abc\\u0026quality=720\"}
+      </script>
+    `;
+
+    expect(extractInstagramEmbedVideoUrls(html)).toEqual([
+      "https://instagram.fcgk12-2.fna.fbcdn.net/o1/v/reel-stream?token=abc&quality=720",
+    ]);
+  });
+
+  it("accepts extension-less progressive CDN URLs but rejects arbitrary URLs in page text", () => {
+    const html = String.raw`
+      <script>
+        {"video_url":"https:\/\/scontent.cdninstagram.com\/o1\/v\/stream?token=valid"}
+        {"video_url":"https:\/\/attacker.example\/collect.mp4"}
+      </script>
+    `;
+
+    expect(extractInstagramEmbedVideoUrls(html)).toEqual([
+      "https://scontent.cdninstagram.com/o1/v/stream?token=valid",
     ]);
   });
 });

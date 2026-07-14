@@ -64,12 +64,6 @@ RUN python3 -m pip install \
     && gallery-dl --version \
     && instaloader --version
 
-# Install yt-dlp as standalone binary
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
-    -o /usr/local/bin/yt-dlp \
-    && chmod +x /usr/local/bin/yt-dlp \
-    && yt-dlp --version
-
 ENV YTDLP_BINARY_PATH=/usr/local/bin/yt-dlp
 ENV GALLERY_DL_BINARY_PATH=/usr/bin/gallery-dl
 ENV PYTHON_BINARY_PATH=/usr/bin/python3
@@ -81,6 +75,14 @@ COPY --from=builder /app/next.config.ts ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+# Keep yt-dlp fresh when application code is deployed. This layer must stay
+# after the copied build output; otherwise BuildKit can reuse an old "latest"
+# binary even when a new source revision is being deployed.
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    -o /usr/local/bin/yt-dlp \
+    && chmod +x /usr/local/bin/yt-dlp \
+    && yt-dlp --version
 
 EXPOSE 7860
 CMD ["node", "./server.js"]

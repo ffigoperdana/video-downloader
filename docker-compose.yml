@@ -8,6 +8,9 @@ services:
     environment:
       YTDLP_COOKIES_BASE64: ${YTDLP_COOKIES_BASE64:-}
       SOCIAL_COOKIES_BASE64: ${SOCIAL_COOKIES_BASE64:-}
+      # Optional override for a dedicated Instagram login session. When unset,
+      # Instagram yt-dlp extraction uses SOCIAL_COOKIES_BASE64.
+      INSTAGRAM_COOKIES_BASE64: ${INSTAGRAM_COOKIES_BASE64:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7860/"]
