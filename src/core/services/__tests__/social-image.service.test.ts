@@ -253,9 +253,17 @@ describe("extractThreadsMedia", () => {
     });
   });
 
-  it("tries the /t permalink when a /share alias has no direct response", async () => {
+  it("resolves a /share alias before asking LoveThreads for media", async () => {
     const fetchMock = jest
       .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        url: "https://www.threads.com/share/Fc4SJIEJOJ/",
+        headers: { get: () => null },
+        text: async () =>
+          '<link rel="canonical" href="https://www.threads.com/@user/post/DRESOLVED123" />',
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: "error" }),
@@ -281,12 +289,16 @@ describe("extractThreadsMedia", () => {
       ],
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const loveThreadsCalls = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes("lovethreads.net/api/ajaxSearch"),
+    );
+    expect(loveThreadsCalls).toHaveLength(2);
     expect(
-      new URLSearchParams(fetchMock.mock.calls[0][1].body).get("q"),
-    ).toBe("https://www.threads.com/t/Fc4SJIEJOJ");
+      new URLSearchParams(loveThreadsCalls[0][1].body).get("q"),
+    ).toBe("https://www.threads.com/@user/post/DRESOLVED123");
     expect(
-      new URLSearchParams(fetchMock.mock.calls[1][1].body).get("q"),
+      new URLSearchParams(loveThreadsCalls[1][1].body).get("q"),
     ).toBe("https://www.threads.com/share/Fc4SJIEJOJ");
   });
 

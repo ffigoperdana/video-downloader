@@ -10,6 +10,10 @@ const THREADS_PATH_PATTERNS = [
   new RegExp(`^/share/${THREADS_POST_ID}(?:/media)?/?$`, "i"),
 ];
 
+export interface CleanThreadsUrlOptions {
+  preserveQuery?: boolean;
+}
+
 function parseUrl(rawUrl: string): URL | null {
   const value = rawUrl.trim();
   if (!value) return null;
@@ -38,10 +42,15 @@ export function isValidThreadsUrl(rawUrl: string): boolean {
 }
 
 /**
- * Return a stable, query-free Threads URL while keeping the original path.
- * Tracking parameters such as xmt and ig_rid are not needed by the extractors.
+ * Return a stable Threads URL while keeping the original path.
+ * Tracking parameters such as xmt and ig_rid are not needed by the extractors,
+ * except while resolving a /share link because xmt can be part of the share
+ * hand-off token.
  */
-export function cleanThreadsUrl(rawUrl: string): string {
+export function cleanThreadsUrl(
+  rawUrl: string,
+  options: CleanThreadsUrlOptions = {},
+): string {
   const url = parseUrl(rawUrl);
   if (
     !url ||
@@ -52,7 +61,17 @@ export function cleanThreadsUrl(rawUrl: string): string {
   }
 
   const pathname = url.pathname.replace(/\/+$/, "") || "/";
-  return `https://www.threads.com${pathname}`;
+  const search = options.preserveQuery ? url.search : "";
+  return `https://www.threads.com${pathname}${search}`;
+}
+
+export function isThreadsShareUrl(rawUrl: string): boolean {
+  const url = parseUrl(rawUrl);
+  return Boolean(
+    url &&
+      isThreadsHost(url.hostname) &&
+      /^\/share\/[A-Za-z0-9_-]+(?:\/media)?\/?$/i.test(url.pathname),
+  );
 }
 
 export function getThreadsPostId(rawUrl: string): string | null {
@@ -75,12 +94,16 @@ export function getThreadsUsername(rawUrl: string): string | null {
 }
 
 /**
- * Some current share links are aliases without a username. Try the canonical
+ * Some current post links are aliases without a username. Try the canonical
  * short permalink first, then keep the original URL as a fallback because
- * Threads can change which alias is resolvable without notice.
+ * Threads can change which alias is resolvable without notice. A /share URL
+ * is intentionally not converted to /t: its token is not the post id.
  */
-export function getThreadsUrlCandidates(rawUrl: string): string[] {
-  const cleanedUrl = cleanThreadsUrl(rawUrl);
+export function getThreadsUrlCandidates(
+  rawUrl: string,
+  options: CleanThreadsUrlOptions = {},
+): string[] {
+  const cleanedUrl = cleanThreadsUrl(rawUrl, options);
   const candidates = [cleanedUrl];
   const parsedUrl = parseUrl(cleanedUrl);
   if (!parsedUrl) return candidates;
@@ -89,9 +112,10 @@ export function getThreadsUrlCandidates(rawUrl: string): string[] {
 
   if (
     postId &&
-    /^\/(?:share|@\/post)\//i.test(parsedUrl.pathname)
+    /^\/@\/post\//i.test(parsedUrl.pathname)
   ) {
-    candidates.unshift(`https://www.threads.com/t/${postId}`);
+    const suffix = options.preserveQuery ? parsedUrl.search : "";
+    candidates.unshift(`https://www.threads.com/t/${postId}${suffix}`);
   }
 
   return [...new Set(candidates)];

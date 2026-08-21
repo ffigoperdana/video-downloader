@@ -7,6 +7,7 @@ import {
   isValidThreadsUrl,
 } from "@/core/services/threads.service";
 import { getThreadsMediaAssets } from "@/core/services/social-image.service";
+import { resolveThreadsUrlCandidates } from "@/core/services/threads-resolver.service";
 
 export interface GetThreadsInfoResult {
   success: boolean;
@@ -21,7 +22,7 @@ export async function getThreadsInfoAction(
     return { success: false, error: "URL is required" };
   }
 
-  const url = cleanThreadsUrl(rawUrl.trim());
+  const url = cleanThreadsUrl(rawUrl.trim(), { preserveQuery: true });
 
   if (!isValidThreadsUrl(url)) {
     return {
@@ -71,7 +72,7 @@ export async function prepareThreadsDownloadAction(
     return { success: false, error: "URL is required" };
   }
 
-  const url = cleanThreadsUrl(rawUrl.trim());
+  const url = cleanThreadsUrl(rawUrl.trim(), { preserveQuery: true });
   if (!isValidThreadsUrl(url)) {
     return { success: false, error: "Invalid Threads URL" };
   }
@@ -93,7 +94,9 @@ export async function prepareThreadsDownloadAction(
 
   const extension = format === "audio" ? "mp3" : "mp4";
   const filename = threadsDownloaderService.buildSafeFilename(title, extension);
-  const params = new URLSearchParams({ url, filename, format });
+  const fallbackUrl =
+    (await resolveThreadsUrlCandidates(url).catch(() => []))[0] ?? url;
+  const params = new URLSearchParams({ url: fallbackUrl, filename, format });
 
   return {
     success: true,

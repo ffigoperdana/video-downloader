@@ -4,8 +4,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import * as cheerio from "cheerio";
 import {
   cleanThreadsUrl,
-  getThreadsUrlCandidates,
 } from "@/core/utils/threads-url";
+import { resolveThreadsUrlCandidates } from "./threads-resolver.service";
 
 export type ImagePlatform =
   | "tiktok"
@@ -887,7 +887,7 @@ async function extractThreadsViaCandidates(sourceUrl: string): Promise<{
   images: ExtractedImage[];
   videos: ExtractedVideo[];
 }> {
-  const candidates = getThreadsUrlCandidates(sourceUrl);
+  const candidates = await resolveThreadsUrlCandidates(sourceUrl);
   let lastError: unknown;
 
   for (const candidate of candidates) {
@@ -928,39 +928,40 @@ export async function extractThreadsMedia(sourceUrl: string): Promise<{
   images: ExtractedImage[];
   videos: ExtractedVideo[];
 }> {
-  const url = cleanThreadsUrl(sourceUrl);
+  const url = cleanThreadsUrl(sourceUrl, { preserveQuery: true });
+  const cacheKey = cleanThreadsUrl(url);
   if (!isSupportedPostUrl(url, "threads")) {
     throw new Error("Unsupported Threads URL");
   }
 
-  const cached = getThreadsMediaCache(url);
+  const cached = getThreadsMediaCache(cacheKey);
   if (cached) return cached;
 
-  const existing = threadsMediaInflight.get(url);
+  const existing = threadsMediaInflight.get(cacheKey);
   if (existing) return cloneThreadsMedia(await existing);
 
   const pending = retry(() => extractThreadsViaCandidates(url), 3)
     .then((media) => {
-      setThreadsMediaCache(url, media);
+      setThreadsMediaCache(cacheKey, media);
       return cloneThreadsMedia(media);
     })
     .catch((error) => {
-      const stale = getThreadsMediaCache(url, true);
+      const stale = getThreadsMediaCache(cacheKey, true);
       if (stale) return stale;
       throw error;
     })
     .finally(() => {
-      threadsMediaInflight.delete(url);
+      threadsMediaInflight.delete(cacheKey);
     });
 
-  threadsMediaInflight.set(url, pending);
+  threadsMediaInflight.set(cacheKey, pending);
   return cloneThreadsMedia(await pending);
 }
 
 export async function getThreadsMediaAssets(
   rawSourceUrl: string,
 ): Promise<ThreadsMediaAssets> {
-  const sourceUrl = cleanThreadsUrl(rawSourceUrl);
+  const sourceUrl = cleanThreadsUrl(rawSourceUrl, { preserveQuery: true });
   const media = await extractThreadsMedia(sourceUrl);
   const queryBase = new URLSearchParams({ platform: "threads", url: sourceUrl });
   return {

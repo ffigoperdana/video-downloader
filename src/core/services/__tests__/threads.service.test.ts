@@ -41,13 +41,19 @@ describe("cleanThreadsUrl", () => {
     ).toBe("https://www.threads.com/share/Fc4SJIEJOJ");
   });
 
-  it("tries the short permalink for share aliases", () => {
+  it("can preserve share hand-off parameters while resolving", () => {
+    expect(
+      cleanThreadsUrl(
+        "https://www.threads.net/share/Fc4SJIEJOJ/?xmt=abc&slof=1",
+        { preserveQuery: true },
+      ),
+    ).toBe("https://www.threads.com/share/Fc4SJIEJOJ?xmt=abc&slof=1");
+  });
+
+  it("keeps share aliases opaque until the resolver expands them", () => {
     expect(
       getThreadsUrlCandidates("https://www.threads.com/share/Fc4SJIEJOJ/"),
-    ).toEqual([
-      "https://www.threads.com/t/Fc4SJIEJOJ",
-      "https://www.threads.com/share/Fc4SJIEJOJ",
-    ]);
+    ).toEqual(["https://www.threads.com/share/Fc4SJIEJOJ"]);
   });
 
   it("returns non-threads URLs unchanged", () => {

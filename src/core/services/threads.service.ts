@@ -4,6 +4,7 @@ import {
   getThreadsPostId,
   getThreadsUrlCandidates,
   getThreadsUsername,
+  isThreadsShareUrl,
   isValidThreadsUrl as validateThreadsUrl,
 } from "@/core/utils/threads-url";
 import {
@@ -11,6 +12,7 @@ import {
   type ThreadsMediaAssets,
   type SocialImageAsset,
 } from "./social-image.service";
+import { resolveThreadsUrlCandidates } from "./threads-resolver.service";
 
 export interface ThreadsPostInfo {
   id: string;
@@ -190,13 +192,16 @@ export class ThreadsDownloaderService {
   }
 
   async getVideoInfo(rawUrl: string): Promise<ThreadsPostInfo> {
-    const url = cleanThreadsUrl(rawUrl);
-    const urlCandidates = getThreadsUrlCandidates(url);
+    const url = cleanThreadsUrl(rawUrl, { preserveQuery: true });
     const urlUsername = getThreadsUsername(url);
     const media = await getThreadsMediaAssets(url).catch(() => null);
     if (media && (media.images.length || media.videos.length)) {
       return mapDirectMediaInfo(url, urlUsername, media);
     }
+
+    const urlCandidates = await resolveThreadsUrlCandidates(url).catch(() =>
+      getThreadsUrlCandidates(url, { preserveQuery: true }),
+    );
 
     let raw: YtDlpInfo | null = null;
     let lastJson = "";
@@ -233,6 +238,11 @@ export class ThreadsDownloaderService {
           "Failed to parse yt-dlp output for Threads. This post may be unsupported or private.",
         );
       }
+      if (isThreadsShareUrl(url) && urlCandidates[0] === url) {
+        throw new Error(
+          "Unable to resolve this Threads share link. Paste the canonical threads.com/@user/post/... URL and try again.",
+        );
+      }
       throw new Error(
         "Unable to extract this Threads post right now. Threads support is experimental; please try again later.",
       );
@@ -245,7 +255,9 @@ export class ThreadsDownloaderService {
     rawUrl: string,
     format: "video" | "audio" = "video",
   ): NodeJS.ReadableStream {
-    const url = getThreadsUrlCandidates(rawUrl)[0] ?? cleanThreadsUrl(rawUrl);
+    const url =
+      getThreadsUrlCandidates(rawUrl, { preserveQuery: true })[0] ??
+      cleanThreadsUrl(rawUrl, { preserveQuery: true });
 
     return this.ytDlp.execStream([
       url,
