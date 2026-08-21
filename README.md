@@ -23,7 +23,7 @@ permanently stored by the application.
 | Instagram | Reels, feed video, IGTV | When available | Photos and carousels | Public posts; cookies improve reliability |
 | Facebook | Videos and Reels | MP3 | Image posts and multi-image posts | Direct permalinks and cookies are recommended |
 | X / Twitter | Videos and GIFs | When available | Image posts | Public posts only |
-| Threads | Video posts | MP3 | Image posts | Experimental; use Retry Failed when an interrupted job needs another attempt |
+| Threads | Video posts | MP3 | Image posts | Experimental; supports canonical, /t, and /share links; use Retry Failed when an interrupted job needs another attempt |
 
 The application also includes URL/platform validation, links to the correct
 downloader when a URL is pasted on the wrong page, responsive image previews,
@@ -47,6 +47,9 @@ for sharing to apps such as WhatsApp.
   `SOCIAL_COOKIES_BASE64` to expose all public images visible to that account.
 - TikTok photo CDN URLs are temporary. Click **Fetch** again if a preview has
   expired or fails to load.
+- Threads accepts both `threads.com` and `threads.net` links in canonical
+  `/@user/post/<id>`, `/t/<id>`, `/@/post/<id>`, and `/share/<id>` forms.
+  Deleted or expired share links still cannot be recovered.
 - Progress downloads are assembled on the SaveIt server in temporary files and
   then streamed to the browser after completion. Very large files therefore use
   homelab disk space and bandwidth rather than browser memory.

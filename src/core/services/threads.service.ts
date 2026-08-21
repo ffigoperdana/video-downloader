@@ -1,5 +1,11 @@
 import YTDlpWrap from "yt-dlp-wrap";
-import { isValidThreadsUrl as validateThreadsUrl } from "@/core/utils/url-validators";
+import {
+  cleanThreadsUrl,
+  getThreadsPostId,
+  getThreadsUrlCandidates,
+  getThreadsUsername,
+  isValidThreadsUrl as validateThreadsUrl,
+} from "@/core/utils/threads-url";
 import {
   getThreadsMediaAssets,
   type ThreadsMediaAssets,
@@ -32,16 +38,35 @@ export interface ThreadsFormat {
   quality: number;
 }
 
+interface YtDlpFormat {
+  format_id?: string;
+  ext?: string;
+  resolution?: string;
+  width?: number;
+  height?: number;
+  fps?: number | null;
+  filesize?: number | null;
+  filesize_approx?: number | null;
+  vcodec?: string | null;
+  acodec?: string | null;
+  quality?: number | null;
+}
+
+interface YtDlpInfo {
+  id?: string;
+  title?: string;
+  description?: string;
+  thumbnail?: string;
+  duration?: number | null;
+  uploader?: string;
+  channel?: string;
+  uploader_id?: string;
+  formats?: YtDlpFormat[];
+}
+
 const getBinaryPath = () => process.env.YTDLP_BINARY_PATH ?? "yt-dlp";
 
-export function cleanThreadsUrl(rawUrl: string): string {
-  try {
-    const u = new URL(rawUrl);
-    if (!/^(.+\.)?threads\.(net|com)$/.test(u.hostname)) return rawUrl;
-    return `https://www.threads.com${u.pathname}`;
-  } catch {}
-  return rawUrl;
-}
+export { cleanThreadsUrl, getThreadsUrlCandidates } from "@/core/utils/threads-url";
 
 export function isValidThreadsUrl(url: string): boolean {
   return validateThreadsUrl(url);
@@ -77,13 +102,13 @@ const THREADS_HEADERS = [
 
 function mapDirectMediaInfo(
   url: string,
-  urlUsername: string | undefined,
+  urlUsername: string | null,
   media: Awaited<ReturnType<typeof getThreadsMediaAssets>>,
 ): ThreadsPostInfo {
   const hasVideo = media.videos.length > 0;
   const hasImages = media.images.length > 0;
   return {
-    id: url.split("/post/")[1] ?? "",
+    id: getThreadsPostId(url) ?? "",
     title:
       hasVideo && hasImages
         ? `Threads mixed post${urlUsername ? ` by @${urlUsername}` : ""}`
@@ -116,6 +141,47 @@ function mapDirectMediaInfo(
   };
 }
 
+function buildYtDlpInfo(
+  raw: YtDlpInfo,
+  url: string,
+  urlUsername: string | null,
+): ThreadsPostInfo {
+  const formats: ThreadsFormat[] = (raw.formats ?? [])
+    .filter((f) => f.vcodec !== "none" || f.acodec !== "none")
+    .map((f) => ({
+      format_id: f.format_id ?? "unknown",
+      ext: f.ext ?? "mp4",
+      resolution:
+        f.resolution ??
+        (f.width && f.height ? `${f.width}x${f.height}` : "unknown"),
+      fps: f.fps ?? null,
+      filesize: f.filesize ?? f.filesize_approx ?? null,
+      vcodec: f.vcodec ?? "none",
+      acodec: f.acodec ?? "none",
+      quality: f.quality ?? 0,
+    }))
+    .sort((a: ThreadsFormat, b: ThreadsFormat) => b.quality - a.quality);
+
+  const hasDirectVideo = false;
+  const images: SocialImageAsset[] = [];
+  const hasNoVideo = formats.length === 0 && !raw.duration && !hasDirectVideo;
+
+  return {
+    id: raw.id ?? getThreadsPostId(url) ?? "",
+    title: raw.title ?? raw.description?.slice(0, 80) ?? "Threads Post",
+    description: raw.description ?? "",
+    thumbnail: raw.thumbnail ?? "",
+    duration: Number(raw.duration) || 0,
+    uploader: raw.uploader ?? raw.channel ?? urlUsername ?? "Threads",
+    uploader_id: raw.uploader_id ?? urlUsername ?? "",
+    formats,
+    media_type: hasNoVideo ? "image" : "video",
+    hasNoVideo,
+    images,
+    videos: [],
+  };
+}
+
 export class ThreadsDownloaderService {
   private ytDlp: YTDlpWrap;
 
@@ -125,85 +191,61 @@ export class ThreadsDownloaderService {
 
   async getVideoInfo(rawUrl: string): Promise<ThreadsPostInfo> {
     const url = cleanThreadsUrl(rawUrl);
-    const urlUsername = new URL(url).pathname.match(/^\/@([^/]+)\/post\//)?.[1];
+    const urlCandidates = getThreadsUrlCandidates(url);
+    const urlUsername = getThreadsUsername(url);
     const media = await getThreadsMediaAssets(url).catch(() => null);
     if (media && (media.images.length || media.videos.length)) {
       return mapDirectMediaInfo(url, urlUsername, media);
     }
 
-    let jsonStr: string;
-    try {
-      jsonStr = await withTimeout(
-        this.ytDlp.execPromise([
-          url,
-          "-J",
-          "--skip-download",
-          "--no-warnings",
-          "--no-check-certificate",
-          "--extractor-retries",
-          "3",
-          ...THREADS_HEADERS,
-        ]),
-        45_000,
-        "threads:getVideoInfo",
-      );
-    } catch (error) {
+    let raw: YtDlpInfo | null = null;
+    let lastJson = "";
+    let lastError: unknown;
+    for (const candidate of urlCandidates) {
+      try {
+        lastJson = await withTimeout(
+          this.ytDlp.execPromise([
+            candidate,
+            "-J",
+            "--skip-download",
+            "--no-warnings",
+            "--no-check-certificate",
+            "--extractor-retries",
+            "3",
+            ...THREADS_HEADERS,
+          ]),
+          45_000,
+          "threads:getVideoInfo",
+        );
+        raw = JSON.parse(lastJson.trim());
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!raw) {
+      if (lastJson) {
+        console.error("[threads:getVideoInfo] raw:", lastJson.slice(0, 300));
+      }
+      if (lastError instanceof SyntaxError) {
+        throw new Error(
+          "Failed to parse yt-dlp output for Threads. This post may be unsupported or private.",
+        );
+      }
       throw new Error(
         "Unable to extract this Threads post right now. Threads support is experimental; please try again later.",
       );
     }
 
-    let raw: any;
-    try {
-      raw = JSON.parse(jsonStr.trim());
-    } catch {
-      console.error("[threads:getVideoInfo] raw:", jsonStr.slice(0, 300));
-      throw new Error(
-        "Failed to parse yt-dlp output for Threads. This post may be unsupported or private.",
-      );
-    }
-
-    const formats: ThreadsFormat[] = (raw.formats ?? [])
-      .filter((f: any) => f.vcodec !== "none" || f.acodec !== "none")
-      .map((f: any) => ({
-        format_id: f.format_id,
-        ext: f.ext ?? "mp4",
-        resolution:
-          f.resolution ??
-          (f.width && f.height ? `${f.width}x${f.height}` : "unknown"),
-        fps: f.fps ?? null,
-        filesize: f.filesize ?? f.filesize_approx ?? null,
-        vcodec: f.vcodec ?? "none",
-        acodec: f.acodec ?? "none",
-        quality: f.quality ?? 0,
-      }))
-      .sort((a: ThreadsFormat, b: ThreadsFormat) => b.quality - a.quality);
-
-    const hasDirectVideo = false;
-    const images: SocialImageAsset[] = [];
-    const hasNoVideo = formats.length === 0 && !raw.duration && !hasDirectVideo;
-
-    return {
-      id: raw.id ?? "",
-      title: raw.title ?? raw.description?.slice(0, 80) ?? "Threads Post",
-      description: raw.description ?? "",
-      thumbnail: raw.thumbnail ?? "",
-      duration: Number(raw.duration) || 0,
-      uploader: raw.uploader ?? raw.channel ?? urlUsername ?? "Threads",
-      uploader_id: raw.uploader_id ?? urlUsername ?? "",
-      formats,
-      media_type: hasNoVideo ? "image" : "video",
-      hasNoVideo,
-      images,
-      videos: [],
-    };
+    return buildYtDlpInfo(raw, url, urlUsername);
   }
 
   createDownloadStream(
     rawUrl: string,
     format: "video" | "audio" = "video",
   ): NodeJS.ReadableStream {
-    const url = cleanThreadsUrl(rawUrl);
+    const url = getThreadsUrlCandidates(rawUrl)[0] ?? cleanThreadsUrl(rawUrl);
 
     return this.ytDlp.execStream([
       url,
@@ -222,7 +264,7 @@ export class ThreadsDownloaderService {
       "3",
       ...THREADS_HEADERS,
       "--add-header",
-      "Referer:https://www.threads.net/",
+      "Referer:https://www.threads.com/",
     ]);
   }
 

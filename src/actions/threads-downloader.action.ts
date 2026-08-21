@@ -27,17 +27,18 @@ export async function getThreadsInfoAction(
     return {
       success: false,
       error:
-        "Invalid Threads URL. Paste a threads.com post link.",
+        "Invalid Threads URL. Paste a threads.com post or share link.",
     };
   }
 
   try {
     const info = await threadsDownloaderService.getVideoInfo(url);
     return { success: true, data: info };
-  } catch (err: any) {
-    console.error("[getThreadsInfoAction]", err?.message);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+    console.error("[getThreadsInfoAction]", message);
 
-    if (err?.message?.includes("login") || err?.message?.includes("private")) {
+    if (/login|private/i.test(message)) {
       return {
         success: false,
         error: "This content is private or requires login.",
@@ -47,7 +48,7 @@ export async function getThreadsInfoAction(
     return {
       success: false,
       error:
-        err?.message ??
+        message ||
         "Failed to fetch this public Threads post.",
     };
   }
@@ -71,6 +72,10 @@ export async function prepareThreadsDownloadAction(
   }
 
   const url = cleanThreadsUrl(rawUrl.trim());
+  if (!isValidThreadsUrl(url)) {
+    return { success: false, error: "Invalid Threads URL" };
+  }
+
   try {
     const media = await getThreadsMediaAssets(url);
     const video = media.videos[videoIndex];

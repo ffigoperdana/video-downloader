@@ -13,6 +13,7 @@ jest.mock("../social-image.service", () => ({
 
 import {
   cleanThreadsUrl,
+  getThreadsUrlCandidates,
   isValidThreadsUrl,
   ThreadsDownloaderService,
 } from "../threads.service";
@@ -30,6 +31,23 @@ describe("cleanThreadsUrl", () => {
         "https://www.threads.net/@user/post/1234567890?ig_rid=abc",
       ),
     ).toBe("https://www.threads.com/@user/post/1234567890");
+  });
+
+  it("keeps the new share path while stripping tracking params", () => {
+    expect(
+      cleanThreadsUrl(
+        "https://www.threads.net/share/Fc4SJIEJOJ/?xmt=abc&slof=1",
+      ),
+    ).toBe("https://www.threads.com/share/Fc4SJIEJOJ");
+  });
+
+  it("tries the short permalink for share aliases", () => {
+    expect(
+      getThreadsUrlCandidates("https://www.threads.com/share/Fc4SJIEJOJ/"),
+    ).toEqual([
+      "https://www.threads.com/t/Fc4SJIEJOJ",
+      "https://www.threads.com/share/Fc4SJIEJOJ",
+    ]);
   });
 
   it("returns non-threads URLs unchanged", () => {
@@ -51,6 +69,8 @@ describe("isValidThreadsUrl", () => {
     "https://threads.net/t/1234567890",
     "https://threads.com/@user/post/DZ4Nbh_EkCF",
     "https://www.threads.com/@user.name/post/AbC-123_xyz",
+    "https://www.threads.com/@/post/Fc4SJIEJOJ",
+    "https://www.threads.com/share/Fc4SJIEJOJ/",
   ])("validates %s", (url) => {
     expect(isValidThreadsUrl(url)).toBe(true);
   });
@@ -59,6 +79,7 @@ describe("isValidThreadsUrl", () => {
     "https://threads.net/",
     "https://www.threads.net/@user",
     "https://www.threads.net/@user/post/",
+    "https://www.threads.com/share/",
     "not a url",
     "",
   ])("rejects %s", (url) => {
@@ -126,6 +147,30 @@ describe("ThreadsDownloaderService", () => {
       hasNoVideo: false,
       images: [{ index: 0 }],
       videos: [{ index: 0 }],
+    });
+    expect(mockExecPromise).not.toHaveBeenCalled();
+  });
+
+  it("keeps the post id when a share alias returns direct media", async () => {
+    mockGetThreadsMediaAssets.mockResolvedValue({
+      images: [],
+      videos: [
+        {
+          index: 0,
+          downloadPath: "/internal/media/video?platform=threads&index=0&download=1",
+        },
+      ],
+    });
+
+    const service = new ThreadsDownloaderService();
+
+    await expect(
+      service.getVideoInfo("https://www.threads.com/share/Fc4SJIEJOJ/"),
+    ).resolves.toMatchObject({
+      id: "Fc4SJIEJOJ",
+      media_type: "video",
+      hasNoVideo: false,
+      uploader_id: "",
     });
     expect(mockExecPromise).not.toHaveBeenCalled();
   });

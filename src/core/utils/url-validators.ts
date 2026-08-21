@@ -1,3 +1,5 @@
+import { isValidThreadsUrl as validateThreadsUrl } from "./threads-url";
+
 export type PlatformType =
   | "youtube"
   | "tiktok"
@@ -86,13 +88,7 @@ export function isValidTwitterUrl(rawUrl: string): boolean {
 }
 
 export function isValidThreadsUrl(rawUrl: string): boolean {
-  const url = parseHttpUrl(rawUrl);
-  return Boolean(
-    url &&
-      matchesHost(url.hostname, ["threads.net", "threads.com"]) &&
-      (/^\/@[\w.]+\/post\/[\w-]+(?:\/|$)/.test(url.pathname) ||
-        /^\/t\/[\w-]+(?:\/|$)/.test(url.pathname)),
-  );
+  return validateThreadsUrl(rawUrl);
 }
 
 export function isPlatformUrl(url: string): PlatformType | null {

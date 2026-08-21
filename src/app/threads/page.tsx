@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import ThreadsDownloader from "./threads-downloader";
 
 export const metadata: Metadata = {
-  title: "Threads Video Downloader — Free, threads.net",
+  title: "Threads Video Downloader — Free, threads.com",
   description:
-    "Download videos from Threads (threads.net). Free, fast, no login required. Experimental support.",
+    "Download videos from Threads (threads.com). Free, fast, no login required. Experimental support.",
   keywords: [
     "threads downloader",
     "download threads video",
-    "threads.net downloader",
+    "threads.com downloader",
     "threads video saver",
   ],
   alternates: { canonical: "https://saveit.app/threads" },

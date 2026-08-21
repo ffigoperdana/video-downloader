@@ -117,6 +117,9 @@ describe("isValidThreadsUrl", () => {
     "https://www.threads.net/t/1234567890",
     "https://www.threads.com/@user/post/DZ4Nbh_EkCF",
     "https://threads.com/@user.name/post/AbC-123_xyz?xmt=abc",
+    "https://www.threads.com/@/post/Fc4SJIEJOJ?xmt=abc",
+    "https://www.threads.com/share/Fc4SJIEJOJ/",
+    "https://www.threads.com/t/Fc4SJIEJOJ/media",
   ])("validates %s", (url) => {
     expect(isValidThreadsUrl(url)).toBe(true);
   });
@@ -125,6 +128,7 @@ describe("isValidThreadsUrl", () => {
     "https://threads.net/",
     "https://www.threads.net/@user",
     "not a url",
+    "https://www.threads.com/share/",
   ])("rejects %s", (url) => {
     expect(isValidThreadsUrl(url)).toBe(false);
   });
@@ -167,6 +171,7 @@ describe("isPlatformUrl", () => {
     ["https://www.tiktok.com/@user/photo/123", "tiktok"],
     ["https://www.facebook.com/photo/?fbid=123", "facebook"],
     ["https://threads.com/@user/post/ABC_123", "threads"],
+    ["https://threads.com/share/Fc4SJIEJOJ", "threads"],
   ])("routes %s to %s", (url, platform) => {
     expect(isPlatformUrl(url)).toBe(platform);
   });

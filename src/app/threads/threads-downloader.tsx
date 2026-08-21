@@ -151,7 +151,7 @@ export default function ThreadsDownloader() {
       />
 
       <p className="text-xs text-zinc-700 text-center">
-        threads.com/@user/post/SHORTCODE
+        threads.com/@user/post/SHORTCODE · /t/SHORTCODE · /share/SHORTCODE
       </p>
 
       {error && (

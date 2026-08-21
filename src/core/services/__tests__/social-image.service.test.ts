@@ -253,6 +253,43 @@ describe("extractThreadsMedia", () => {
     });
   });
 
+  it("tries the /t permalink when a /share alias has no direct response", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "error" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: "ok",
+          data: '<ul class="download-box"><li><span class="format-icon"><i class="icon icon-dlvideo"></i></span><div class="download-items__btn"><a title="Download Video" href="https://dl.snapcdn.app/share-video.mp4">Download</a></div></li></ul>',
+        }),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      extractThreadsMedia("https://www.threads.com/share/Fc4SJIEJOJ/"),
+    ).resolves.toEqual({
+      images: [],
+      videos: [
+        {
+          remoteUrl: "https://dl.snapcdn.app/share-video.mp4",
+          extension: "mp4",
+        },
+      ],
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      new URLSearchParams(fetchMock.mock.calls[0][1].body).get("q"),
+    ).toBe("https://www.threads.com/t/Fc4SJIEJOJ");
+    expect(
+      new URLSearchParams(fetchMock.mock.calls[1][1].body).get("q"),
+    ).toBe("https://www.threads.com/share/Fc4SJIEJOJ");
+  });
+
   it("reuses cached Threads media for repeated preview requests", async () => {
     const sourceUrl = "https://www.threads.com/@user/post/DZCACHE123";
     global.fetch = jest.fn().mockResolvedValue({

@@ -2,6 +2,10 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFileSync, writeFileSync } from "node:fs";
 import * as cheerio from "cheerio";
+import {
+  cleanThreadsUrl,
+  getThreadsUrlCandidates,
+} from "@/core/utils/threads-url";
 
 export type ImagePlatform =
   | "tiktok"
@@ -236,31 +240,6 @@ function mergeExtractedImages(images: ExtractedImage[]): ExtractedImage[] {
   }
 
   return merged;
-}
-
-function uniqueImages(urls: string[]): ExtractedImage[] {
-  const seen = new Set<string>();
-  const images: ExtractedImage[] = [];
-
-  for (const rawUrl of urls) {
-    if (images.length >= 20) break;
-    const url = rawUrl.trim();
-    const extension = inferExtension(url);
-    const key = mediaIdentityKey(url);
-    if (!extension || seen.has(key)) continue;
-
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
-    } catch {
-      continue;
-    }
-
-    seen.add(key);
-    images.push({ remoteUrl: url, extension });
-  }
-
-  return images;
 }
 
 function uniqueMedia(urls: string[]): ExtractedMedia[] {
@@ -638,12 +617,16 @@ async function extractTikTokViaTiktokApiDl(sourceUrl: string): Promise<Extracted
   if (!/\/photo\/\d+\/?$/i.test(new URL(sourceUrl).pathname)) return [];
 
   const mod = await import("@tobyg74/tiktok-api-dl");
-  const tiktok = ((mod as any).default ?? mod) as {
+  type TiktokApiDlClient = {
     Downloader?: (
       url: string,
       options: { version: "v1" | "v2" | "v3"; showOriginalResponse?: boolean },
     ) => Promise<TiktokApiDlPayload>;
   };
+  const typedModule = mod as unknown as {
+    default?: TiktokApiDlClient;
+  } & TiktokApiDlClient;
+  const tiktok: TiktokApiDlClient = typedModule.default ?? typedModule;
 
   for (const version of ["v1", "v2", "v3"] as const) {
     const payload = await tiktok.Downloader?.(sourceUrl, {
@@ -900,6 +883,29 @@ async function extractThreadsViaLoveThreads(sourceUrl: string): Promise<{
   };
 }
 
+async function extractThreadsViaCandidates(sourceUrl: string): Promise<{
+  images: ExtractedImage[];
+  videos: ExtractedVideo[];
+}> {
+  const candidates = getThreadsUrlCandidates(sourceUrl);
+  let lastError: unknown;
+
+  for (const candidate of candidates) {
+    try {
+      const media = await extractThreadsViaLoveThreads(candidate);
+      if (media.images.length || media.videos.length || candidate === candidates.at(-1)) {
+        return media;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Threads fallback returned no media");
+}
+
 function toImageAssets(
   sourceUrl: string,
   platform: ImagePlatform,
@@ -922,37 +928,39 @@ export async function extractThreadsMedia(sourceUrl: string): Promise<{
   images: ExtractedImage[];
   videos: ExtractedVideo[];
 }> {
-  if (!isSupportedPostUrl(sourceUrl, "threads")) {
+  const url = cleanThreadsUrl(sourceUrl);
+  if (!isSupportedPostUrl(url, "threads")) {
     throw new Error("Unsupported Threads URL");
   }
 
-  const cached = getThreadsMediaCache(sourceUrl);
+  const cached = getThreadsMediaCache(url);
   if (cached) return cached;
 
-  const existing = threadsMediaInflight.get(sourceUrl);
+  const existing = threadsMediaInflight.get(url);
   if (existing) return cloneThreadsMedia(await existing);
 
-  const pending = retry(() => extractThreadsViaLoveThreads(sourceUrl), 3)
+  const pending = retry(() => extractThreadsViaCandidates(url), 3)
     .then((media) => {
-      setThreadsMediaCache(sourceUrl, media);
+      setThreadsMediaCache(url, media);
       return cloneThreadsMedia(media);
     })
     .catch((error) => {
-      const stale = getThreadsMediaCache(sourceUrl, true);
+      const stale = getThreadsMediaCache(url, true);
       if (stale) return stale;
       throw error;
     })
     .finally(() => {
-      threadsMediaInflight.delete(sourceUrl);
+      threadsMediaInflight.delete(url);
     });
 
-  threadsMediaInflight.set(sourceUrl, pending);
+  threadsMediaInflight.set(url, pending);
   return cloneThreadsMedia(await pending);
 }
 
 export async function getThreadsMediaAssets(
-  sourceUrl: string,
+  rawSourceUrl: string,
 ): Promise<ThreadsMediaAssets> {
+  const sourceUrl = cleanThreadsUrl(rawSourceUrl);
   const media = await extractThreadsMedia(sourceUrl);
   const queryBase = new URLSearchParams({ platform: "threads", url: sourceUrl });
   return {
