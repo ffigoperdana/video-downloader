@@ -1,5 +1,6 @@
 const mockExecPromise = jest.fn();
 const mockGetThreadsMediaAssets = jest.fn();
+const mockResolveThreadsUrlCandidates = jest.fn();
 
 jest.mock("yt-dlp-wrap", () => {
   return jest.fn().mockImplementation(() => ({
@@ -11,12 +12,17 @@ jest.mock("../social-image.service", () => ({
   getThreadsMediaAssets: mockGetThreadsMediaAssets,
 }));
 
+jest.mock("../threads-resolver.service", () => ({
+  resolveThreadsUrlCandidates: mockResolveThreadsUrlCandidates,
+}));
+
 import {
   cleanThreadsUrl,
   getThreadsUrlCandidates,
   isValidThreadsUrl,
   ThreadsDownloaderService,
 } from "../threads.service";
+import { buildThreadsDownloadFilename } from "../../utils/threads-url";
 
 describe("cleanThreadsUrl", () => {
   it("normalizes legacy threads.net URLs to threads.com", () => {
@@ -97,6 +103,8 @@ describe("ThreadsDownloaderService", () => {
   beforeEach(() => {
     mockExecPromise.mockReset();
     mockGetThreadsMediaAssets.mockReset();
+    mockResolveThreadsUrlCandidates.mockReset();
+    mockResolveThreadsUrlCandidates.mockImplementation(async (url: string) => [url]);
   });
 
   it("uses direct Threads media before trying yt-dlp", async () => {
@@ -179,5 +187,54 @@ describe("ThreadsDownloaderService", () => {
       uploader_id: "",
     });
     expect(mockExecPromise).not.toHaveBeenCalled();
+  });
+
+  it("uses canonical metadata when a share alias is resolved", async () => {
+    mockResolveThreadsUrlCandidates.mockResolvedValue([
+      "https://www.threads.com/@alice/post/DRESOLVED123",
+      "https://www.threads.com/share/SHARE123",
+    ]);
+    mockGetThreadsMediaAssets.mockResolvedValue({
+      images: [],
+      videos: [
+        {
+          index: 0,
+          downloadPath: "/internal/media/video?platform=threads&index=0&download=1",
+        },
+      ],
+    });
+
+    const service = new ThreadsDownloaderService();
+
+    await expect(
+      service.getVideoInfo("https://www.threads.com/share/SHARE123"),
+    ).resolves.toMatchObject({
+      id: "DRESOLVED123",
+      uploader_id: "alice",
+      uploader: "alice",
+    });
+  });
+});
+
+describe("buildThreadsDownloadFilename", () => {
+  it("includes the Threads username and post id for video downloads", () => {
+    expect(
+      buildThreadsDownloadFilename(
+        "https://www.threads.com/@alice/post/DABC123",
+        { extension: "mp4", mediaType: "video" },
+      ),
+    ).toBe("threads-alice-DABC123-video-1.mp4");
+  });
+
+  it("uses resolved metadata when a share URL has no canonical path", () => {
+    expect(
+      buildThreadsDownloadFilename("https://www.threads.com/share/SHARE123", {
+        extension: "jpg",
+        mediaType: "image",
+        index: 1,
+        username: "bob",
+        postId: "DPOST456",
+      }),
+    ).toBe("threads-bob-DPOST456-image-2.jpg");
   });
 });

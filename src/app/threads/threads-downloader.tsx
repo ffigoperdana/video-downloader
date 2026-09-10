@@ -12,6 +12,7 @@ import {
 } from "@/actions/threads-downloader.action";
 import type { ThreadsPostInfo } from "@/core/services/threads.service";
 import { fmtDuration } from "@/core/utils/format-helpers";
+import { buildThreadsDownloadFilename } from "@/core/utils/threads-url";
 import { useDownloadHistory } from "@/core/hooks/use-download-history";
 import { useBatchDownload } from "@/core/hooks/use-batch-download";
 
@@ -226,10 +227,17 @@ export default function ThreadsDownloader() {
                 format === "original"
                   ? image.downloadPath
                   : `${image.downloadPath}&format=${format}`;
+              const filename = buildThreadsDownloadFilename(url, {
+                extension,
+                mediaType: "image",
+                index: image.index,
+                username: info.uploader_id,
+                postId: info.id,
+              });
               batch.addToQueue([{
                 url: downloadPath,
                 title: `Threads image ${image.index + 1}`,
-                filename: `threads-${image.index + 1}.${extension}`,
+                filename,
                 downloadPath,
               }]);
               void batch.startBatch();

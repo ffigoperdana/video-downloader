@@ -6,9 +6,14 @@ import { useBatchDownload } from "../use-batch-download";
 
 describe("useBatchDownload", () => {
   const originalFetch = global.fetch;
+  const originalUserAgent = navigator.userAgent;
 
   afterEach(() => {
     global.fetch = originalFetch;
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      value: originalUserAgent,
+    });
     jest.useRealTimers();
     jest.restoreAllMocks();
   });
@@ -170,5 +175,71 @@ describe("useBatchDownload", () => {
     });
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
     jest.useRealTimers();
+  });
+
+  it("keeps a user-activated save link for iOS instead of auto-clicking", async () => {
+    jest.useFakeTimers();
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+    });
+    global.fetch = jest.fn((input) => {
+      const url = String(input);
+      if (url === "/internal/progress/start") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            job: {
+              id: "job-ios-1",
+              status: "downloading",
+              progress: 0,
+              receivedBytes: 0,
+              totalBytes: 3,
+            },
+          }),
+        } as Response);
+      }
+      if (url === "/internal/progress/status?id=job-ios-1") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            job: {
+              id: "job-ios-1",
+              status: "completed",
+              progress: 100,
+              receivedBytes: 3,
+              totalBytes: 3,
+            },
+          }),
+        } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch ${url}`));
+    });
+    const clickSpy = jest
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation();
+
+    const { result } = renderHook(() => useBatchDownload());
+    await act(async () => {
+      result.current.addToQueue([
+        {
+          url: "https://example.com/video",
+          title: "Video",
+          filename: "threads-alice-DABC123-video-1.mp4",
+          downloadPath: "/download",
+        },
+      ]);
+      const promise = result.current.startBatch();
+      await jest.runOnlyPendingTimersAsync();
+      await promise;
+    });
+
+    expect(clickSpy).not.toHaveBeenCalled();
+    expect(result.current.items[0]).toMatchObject({
+      status: "completed",
+      progress: 100,
+      requiresManualSave: true,
+      downloadUrl: "/internal/progress/file?id=job-ios-1",
+    });
   });
 });

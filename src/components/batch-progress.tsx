@@ -140,6 +140,19 @@ export default function BatchProgress({
                       {item.error}
                     </p>
                   )}
+                  {item.status === "completed" &&
+                    item.requiresManualSave &&
+                    item.downloadUrl && (
+                      <a
+                        href={item.downloadUrl}
+                        download={item.filename}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex mt-1 rounded-md bg-emerald-500/15 px-2 py-1 text-[10px] font-medium text-emerald-300 hover:bg-emerald-500/25"
+                      >
+                        Save file
+                      </a>
+                    )}
                 </div>
                 <span className="text-[10px] text-zinc-600 flex-shrink-0 w-14 text-right">
                   {item.status === "downloading"

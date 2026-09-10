@@ -8,6 +8,7 @@ import {
 } from "@/core/services/threads.service";
 import { getThreadsMediaAssets } from "@/core/services/social-image.service";
 import { resolveThreadsUrlCandidates } from "@/core/services/threads-resolver.service";
+import { buildThreadsDownloadFilename } from "@/core/utils/threads-url";
 
 export interface GetThreadsInfoResult {
   success: boolean;
@@ -62,6 +63,22 @@ export interface PrepareThreadsDownloadResult {
   error?: string;
 }
 
+async function getThreadsDownloadFilename(
+  rawUrl: string,
+  format: "video" | "audio",
+  videoIndex: number,
+  title: string,
+): Promise<string> {
+  const resolvedUrl =
+    (await resolveThreadsUrlCandidates(rawUrl).catch(() => []))[0] ?? rawUrl;
+  return buildThreadsDownloadFilename(resolvedUrl, {
+    extension: format === "audio" ? "mp3" : "mp4",
+    mediaType: format,
+    index: videoIndex,
+    title,
+  });
+}
+
 export async function prepareThreadsDownloadAction(
   rawUrl: string,
   title: string = "threads",
@@ -81,8 +98,12 @@ export async function prepareThreadsDownloadAction(
     const media = await getThreadsMediaAssets(url);
     const video = media.videos[videoIndex];
     if (video) {
-      const extension = format === "audio" ? "mp3" : "mp4";
-      const filename = threadsDownloaderService.buildSafeFilename(title, extension);
+      const filename = await getThreadsDownloadFilename(
+        url,
+        format,
+        videoIndex,
+        title,
+      );
       const separator = video.downloadPath.includes("?") ? "&" : "?";
       return {
         success: true,
@@ -92,8 +113,12 @@ export async function prepareThreadsDownloadAction(
     }
   } catch {}
 
-  const extension = format === "audio" ? "mp3" : "mp4";
-  const filename = threadsDownloaderService.buildSafeFilename(title, extension);
+  const filename = await getThreadsDownloadFilename(
+    url,
+    format,
+    videoIndex,
+    title,
+  );
   const fallbackUrl =
     (await resolveThreadsUrlCandidates(url).catch(() => []))[0] ?? url;
   const params = new URLSearchParams({ url: fallbackUrl, filename, format });

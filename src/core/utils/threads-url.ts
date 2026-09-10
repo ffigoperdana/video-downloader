@@ -14,6 +14,15 @@ export interface CleanThreadsUrlOptions {
   preserveQuery?: boolean;
 }
 
+export interface ThreadsDownloadFilenameOptions {
+  extension: string;
+  mediaType: "image" | "video" | "audio";
+  index?: number;
+  username?: string | null;
+  postId?: string | null;
+  title?: string;
+}
+
 function parseUrl(rawUrl: string): URL | null {
   const value = rawUrl.trim();
   if (!value) return null;
@@ -91,6 +100,44 @@ export function getThreadsUsername(rawUrl: string): string | null {
   const url = parseUrl(rawUrl);
   if (!url || !isThreadsHost(url.hostname)) return null;
   return url.pathname.match(/^\/@([\w.]+)\/post\//i)?.[1] ?? null;
+}
+
+function sanitizeFilenamePart(value: string): string {
+  return value
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "")
+    .slice(0, 80);
+}
+
+/**
+ * Build a stable, collision-resistant name for media from a Threads post.
+ * Share URLs use their opaque share token until the resolver can provide the
+ * canonical post id, which is still preferable to a repeated generic name.
+ */
+export function buildThreadsDownloadFilename(
+  rawUrl: string,
+  options: ThreadsDownloadFilenameOptions,
+): string {
+  const username = options.username ?? getThreadsUsername(rawUrl);
+  const postId = options.postId ?? getThreadsPostId(rawUrl);
+  const title = options.title?.trim();
+  const titlePart =
+    title && !/^threads\s+(?:video|image\s+post|mixed\s+post)\b/i.test(title)
+      ? sanitizeFilenamePart(title)
+      : "";
+  const identity = [username, postId]
+    .filter((part): part is string => Boolean(part))
+    .map(sanitizeFilenamePart)
+    .filter(Boolean)
+    .join("-");
+  const mediaPart = `${options.mediaType}-${(options.index ?? 0) + 1}`;
+  const extension = sanitizeFilenamePart(options.extension.toLowerCase()) || "bin";
+
+  return `threads-${[titlePart, identity || "post"]
+    .filter(Boolean)
+    .join("-")}-${mediaPart}.${extension}`;
 }
 
 /**

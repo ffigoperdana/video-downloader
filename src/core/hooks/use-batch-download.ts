@@ -14,10 +14,22 @@ export interface BatchItem {
   filename?: string;
   downloadPath?: string;
   serverJobId?: string;
+  downloadUrl?: string;
+  requiresManualSave?: boolean;
 }
 
 interface UseBatchDownloadOptions {
   onComplete?: (item: BatchItem) => void;
+}
+
+function requiresManualSaveOnThisDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+
+  const userAgent = navigator.userAgent || "";
+  const isAppleMobile = /iPad|iPhone|iPod/i.test(userAgent);
+  const isTouchMac =
+    navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return isAppleMobile || isTouchMac;
 }
 
 export function useBatchDownload(options?: UseBatchDownloadOptions) {
@@ -167,12 +179,16 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
           break;
         }
 
-        const a = document.createElement("a");
-        a.href = `/internal/progress/file?id=${jobId}`;
-        a.download = item.filename ?? "download.mp4";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        const downloadUrl = `/internal/progress/file?id=${jobId}`;
+        const requiresManualSave = requiresManualSaveOnThisDevice();
+        if (!requiresManualSave) {
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          a.download = item.filename ?? "download.mp4";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
         activeJobIdsRef.current.delete(jobId);
 
         updateItems((prev) =>
@@ -184,12 +200,20 @@ export function useBatchDownload(options?: UseBatchDownloadOptions) {
                   progress: 100,
                   receivedBytes: latestJob.receivedBytes,
                   totalBytes: latestJob.totalBytes,
+                  downloadUrl,
+                  requiresManualSave,
                 }
               : i,
           ),
         );
 
-        options?.onComplete?.({ ...item, status: "completed", progress: 100 });
+        options?.onComplete?.({
+          ...item,
+          status: "completed",
+          progress: 100,
+          downloadUrl,
+          requiresManualSave,
+        });
       } catch (err: unknown) {
         if (serverJobId) activeJobIdsRef.current.delete(serverJobId);
         if (abortRef.current) break;

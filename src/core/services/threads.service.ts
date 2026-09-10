@@ -193,15 +193,15 @@ export class ThreadsDownloaderService {
 
   async getVideoInfo(rawUrl: string): Promise<ThreadsPostInfo> {
     const url = cleanThreadsUrl(rawUrl, { preserveQuery: true });
-    const urlUsername = getThreadsUsername(url);
-    const media = await getThreadsMediaAssets(url).catch(() => null);
-    if (media && (media.images.length || media.videos.length)) {
-      return mapDirectMediaInfo(url, urlUsername, media);
-    }
-
     const urlCandidates = await resolveThreadsUrlCandidates(url).catch(() =>
       getThreadsUrlCandidates(url, { preserveQuery: true }),
     );
+    const resolvedUrl = urlCandidates[0] ?? url;
+    const urlUsername = getThreadsUsername(resolvedUrl);
+    const media = await getThreadsMediaAssets(url).catch(() => null);
+    if (media && (media.images.length || media.videos.length)) {
+      return mapDirectMediaInfo(resolvedUrl, urlUsername, media);
+    }
 
     let raw: YtDlpInfo | null = null;
     let lastJson = "";
@@ -248,7 +248,7 @@ export class ThreadsDownloaderService {
       );
     }
 
-    return buildYtDlpInfo(raw, url, urlUsername);
+    return buildYtDlpInfo(raw, resolvedUrl, urlUsername);
   }
 
   createDownloadStream(
