@@ -12,12 +12,12 @@ export const metadata: Metadata = {
     "facebook video saver",
     "fb video download",
   ],
-  alternates: { canonical: "https://saveit.app/facebook" },
+  alternates: { canonical: "/facebook" },
   openGraph: {
     title: "Facebook Downloader — Free Video Download",
     description:
       "Download Facebook videos and reels in HD quality. Free and no login required.",
-    url: "https://saveit.app/facebook",
+    url: "/facebook",
   },
 };
 

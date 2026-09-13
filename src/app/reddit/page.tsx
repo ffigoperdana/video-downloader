@@ -12,12 +12,12 @@ export const metadata: Metadata = {
     "reddit gallery downloader",
     "save reddit video with audio",
   ],
-  alternates: { canonical: "https://saveit.app/reddit" },
+  alternates: { canonical: "/reddit" },
   openGraph: {
     title: "Reddit Video & Image Downloader — Free",
     description:
       "Download public Reddit videos, image posts, and galleries with SaveIt.",
-    url: "https://saveit.app/reddit",
+    url: "/reddit",
   },
 };
 

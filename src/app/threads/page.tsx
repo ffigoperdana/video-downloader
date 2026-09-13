@@ -11,12 +11,12 @@ export const metadata: Metadata = {
     "threads.com downloader",
     "threads video saver",
   ],
-  alternates: { canonical: "https://saveit.app/threads" },
+  alternates: { canonical: "/threads" },
   openGraph: {
     title: "Threads Video Downloader — Free",
     description:
       "Download videos from Threads. Free and no login required.",
-    url: "https://saveit.app/threads",
+    url: "/threads",
   },
 };
 

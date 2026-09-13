@@ -18,8 +18,24 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
+const FALLBACK_SITE_URL = "https://save.fgdev.tech";
+
+function getMetadataBase(): URL {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configured) {
+    try {
+      const url = new URL(configured);
+      if (url.protocol === "https:" || url.protocol === "http:") return url;
+    } catch {
+      // Fall back to the production domain when an environment value is invalid.
+    }
+  }
+
+  return new URL(FALLBACK_SITE_URL);
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://saveit.app"),
+  metadataBase: getMetadataBase(),
   title: {
     default: "SaveIt — Download Videos & Images Free",
     template: "%s | SaveIt",
@@ -54,26 +70,17 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://saveit.app",
+    url: "/",
     siteName: "SaveIt",
     title: "SaveIt — Download Videos & Images Free",
     description:
       "Download public videos and image posts from YouTube, TikTok, Instagram, Facebook, X, Threads, and Reddit.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "SaveIt Video and Image Downloader",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "SaveIt — Download Videos & Images Free",
     description:
       "Download public videos and images from seven supported platforms.",
-    images: ["/og-image.png"],
   },
   robots: {
     index: true,

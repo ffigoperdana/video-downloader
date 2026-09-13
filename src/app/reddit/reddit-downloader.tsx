@@ -60,6 +60,7 @@ export default function RedditDownloader() {
       const result = await getRedditInfoAction(url);
       if (result.success && result.data) {
         setInfo(result.data);
+        if (result.data.isDirectMedia) setFormat("video");
       } else {
         setError(result.error ?? "Unable to fetch this Reddit post.");
       }
@@ -149,8 +150,8 @@ export default function RedditDownloader() {
       <div className="flex items-start gap-2 rounded-xl border border-orange-500/20 bg-orange-500/8 px-3 py-2 text-xs leading-relaxed text-orange-300">
         <span aria-hidden="true">i</span>
         <span>
-          Public Reddit posts only. Native Reddit videos are downloaded with
-          their audio track when one is available.
+          Public post and Reddit share links are supported. Native videos are
+          downloaded with their audio track when one is available.
         </span>
       </div>
 
@@ -169,7 +170,7 @@ export default function RedditDownloader() {
 
       <p className="text-center text-xs text-zinc-700">
         reddit.com/r/subreddit/comments/POST_ID · reddit.com/gallery/POST_ID ·
-        redd.it/POST_ID
+        reddit.com/r/subreddit/s/SHARE_ID · redd.it/POST_ID
       </p>
 
       {error && (
@@ -208,7 +209,11 @@ export default function RedditDownloader() {
             <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-0.5 text-xs text-orange-300">
-                  {info.hasNoVideo ? "Image post" : "Video"}
+                  {info.hasNoVideo
+                    ? "Image post"
+                    : info.isDirectMedia
+                      ? "Direct video"
+                      : "Video"}
                 </span>
                 {info.subreddit && (
                   <span className="text-xs text-zinc-500">{info.subreddit}</span>
@@ -250,6 +255,20 @@ export default function RedditDownloader() {
             </div>
           )}
 
+          {info.isDirectMedia && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-sm text-amber-400">
+              <span className="text-xl">⚠</span>
+              <div>
+                <p className="font-semibold text-sm">Direct media fallback</p>
+                <p className="mt-0.5 text-xs text-amber-400/70">
+                  This copied media file can expire and may not include the
+                  original post audio. Paste the post or share link for the
+                  best result.
+                </p>
+              </div>
+            </div>
+          )}
+
           <ImageMediaGallery
             images={info.images}
             platformLabel="Reddit"
@@ -282,8 +301,17 @@ export default function RedditDownloader() {
 
           {!info.hasNoVideo && (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                {DOWNLOAD_TYPES.map((type) => (
+              <div
+                className={
+                  info.isDirectMedia
+                    ? "grid grid-cols-1 gap-2"
+                    : "grid grid-cols-2 gap-2"
+                }
+              >
+                {(info.isDirectMedia
+                  ? DOWNLOAD_TYPES.filter((type) => type.value === "video")
+                  : DOWNLOAD_TYPES
+                ).map((type) => (
                   <button
                     key={type.value}
                     type="button"

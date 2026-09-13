@@ -2,6 +2,7 @@ const mockExecPromise = jest.fn();
 const mockExecStream = jest.fn();
 const mockGetRedditPost = jest.fn();
 const mockGetSocialImageAssets = jest.fn();
+const mockResolveRedditUrl = jest.fn((url: string) => Promise.resolve(url));
 
 jest.mock("yt-dlp-wrap", () => {
   return jest.fn().mockImplementation(() => ({
@@ -21,6 +22,10 @@ jest.mock("../social-image.service", () => ({
   getSocialImageAssets: mockGetSocialImageAssets,
 }));
 
+jest.mock("../reddit-resolver.service", () => ({
+  resolveRedditUrl: mockResolveRedditUrl,
+}));
+
 import { RedditDownloaderService } from "../reddit.service";
 
 describe("RedditDownloaderService", () => {
@@ -29,6 +34,8 @@ describe("RedditDownloaderService", () => {
     mockExecStream.mockReset();
     mockGetRedditPost.mockReset();
     mockGetSocialImageAssets.mockReset();
+    mockResolveRedditUrl.mockReset();
+    mockResolveRedditUrl.mockImplementation((url: string) => Promise.resolve(url));
     mockExecStream.mockReturnValue({} as NodeJS.ReadableStream);
   });
 
@@ -93,5 +100,20 @@ describe("RedditDownloaderService", () => {
     const args = mockExecStream.mock.calls[0][0] as string[];
     expect(args[args.indexOf("-f") + 1]).toBe("bestaudio/best");
     expect(args).toEqual(expect.arrayContaining(["-x", "--audio-format", "mp3"]));
+  });
+
+  it("returns a video-only fallback for a signed packaged-media URL", async () => {
+    const service = new RedditDownloaderService();
+    const directUrl =
+      "https://packaged-media.redd.it/83tghfh1b16h1/pb/m2-res_1280p.mp4?m=DASHPlaylist.mpd";
+
+    await expect(service.getVideoInfo(directUrl)).resolves.toMatchObject({
+      id: "83tghfh1b16h1",
+      media_type: "video",
+      hasNoVideo: false,
+      isDirectMedia: true,
+    });
+    expect(mockGetRedditPost).not.toHaveBeenCalled();
+    expect(mockExecPromise).not.toHaveBeenCalled();
   });
 });

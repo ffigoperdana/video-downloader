@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "SaveIt — Free Video & Image Downloader",
   description:
     "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, Threads, and Reddit for free.",
-  alternates: { canonical: "https://saveit.app" },
+  alternates: { canonical: "/" },
 };
 
 const PLATFORMS = [

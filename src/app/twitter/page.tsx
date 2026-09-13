@@ -12,12 +12,12 @@ export const metadata: Metadata = {
     "download x video",
     "twitter to mp4",
   ],
-  alternates: { canonical: "https://saveit.app/twitter" },
+  alternates: { canonical: "/twitter" },
   openGraph: {
     title: "X (Twitter) Video Downloader — Free",
     description:
       "Download X and Twitter videos in HD quality. Free and no login required.",
-    url: "https://saveit.app/twitter",
+    url: "/twitter",
   },
 };
 

@@ -1,6 +1,9 @@
 import YTDlpWrap from "yt-dlp-wrap";
 import {
   cleanRedditUrl,
+  getRedditDirectMediaId,
+  isRedditDirectMediaUrl,
+  isRedditShareUrl,
   isValidRedditUrl,
 } from "@/core/utils/reddit-url";
 import {
@@ -13,6 +16,7 @@ import {
   getSocialImageAssets,
   type SocialImageAsset,
 } from "./social-image.service";
+import { resolveRedditUrl } from "./reddit-resolver.service";
 
 export interface RedditFormat {
   format_id: string;
@@ -40,6 +44,7 @@ export interface RedditPostInfo {
   images: SocialImageAsset[];
   media_type: "video" | "image";
   hasNoVideo: boolean;
+  isDirectMedia: boolean;
 }
 
 interface RedditYtDlpFormat {
@@ -130,7 +135,46 @@ export class RedditDownloaderService {
   }
 
   async getVideoInfo(rawUrl: string): Promise<RedditPostInfo> {
-    const url = cleanRedditUrl(rawUrl);
+    const url = await resolveRedditUrl(cleanRedditUrl(rawUrl));
+    if (isRedditShareUrl(url)) {
+      throw new Error(
+        "Unable to resolve this Reddit share link. Open the post and copy its post URL instead.",
+      );
+    }
+
+    if (isRedditDirectMediaUrl(url)) {
+      const directMediaId = getRedditDirectMediaId(url) ?? "";
+      return {
+        id: directMediaId,
+        title: "Reddit video",
+        description:
+          "This is a direct Reddit media file. It may not include the post audio track and can expire.",
+        thumbnail: "",
+        duration: 0,
+        uploader: "Reddit",
+        uploader_id: "",
+        subreddit: "",
+        view_count: 0,
+        like_count: 0,
+        formats: [
+          {
+            format_id: "direct",
+            ext: "mp4",
+            resolution: "source",
+            fps: null,
+            filesize: null,
+            vcodec: "unknown",
+            acodec: "unknown",
+            quality: 0,
+          },
+        ],
+        images: [],
+        media_type: "video",
+        hasNoVideo: false,
+        isDirectMedia: true,
+      };
+    }
+
     const post = await getRedditPost(url);
     const isVideo = isRedditNativeVideo(post);
 
@@ -157,6 +201,7 @@ export class RedditDownloaderService {
         images,
         media_type: "image",
         hasNoVideo: true,
+        isDirectMedia: false,
       };
     }
 
@@ -209,6 +254,7 @@ export class RedditDownloaderService {
       images: [],
       media_type: "video",
       hasNoVideo: !hasVideo,
+      isDirectMedia: false,
     };
   }
 
@@ -217,6 +263,12 @@ export class RedditDownloaderService {
     format: "video" | "audio" = "video",
   ): NodeJS.ReadableStream {
     const url = cleanRedditUrl(rawUrl);
+    if (isRedditDirectMediaUrl(url)) {
+      throw new Error(
+        "Direct Reddit media links must be streamed through the compatible media route.",
+      );
+    }
+
     const formatArg =
       format === "audio"
         ? "bestaudio/best"

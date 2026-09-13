@@ -11,12 +11,12 @@ export const metadata: Metadata = {
     "tiktok video saver",
     "tiktok to mp4",
   ],
-  alternates: { canonical: "https://saveit.app/tiktok" },
+  alternates: { canonical: "/tiktok" },
   openGraph: {
     title: "TikTok Downloader — No Watermark Free",
     description:
       "Download TikTok videos without watermark instantly. Free and no login required.",
-    url: "https://saveit.app/tiktok",
+    url: "/tiktok",
   },
 };
 

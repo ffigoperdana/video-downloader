@@ -12,12 +12,12 @@ export const metadata: Metadata = {
     "save instagram post",
     "instagram to mp4",
   ],
-  alternates: { canonical: "https://saveit.app/instagram" },
+  alternates: { canonical: "/instagram" },
   openGraph: {
     title: "Instagram Downloader — Reels & Posts Free",
     description:
       "Download Instagram videos in original quality. Reels, posts, carousels — all supported.",
-    url: "https://saveit.app/instagram",
+    url: "/instagram",
   },
 };
 

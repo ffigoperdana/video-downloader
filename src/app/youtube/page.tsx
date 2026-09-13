@@ -13,12 +13,12 @@ export const metadata: Metadata = {
     "youtube shorts download",
     "youtube playlist downloader",
   ],
-  alternates: { canonical: "https://saveit.app/youtube" },
+  alternates: { canonical: "/youtube" },
   openGraph: {
     title: "YouTube Downloader — HD 1080p Free",
     description:
       "Download YouTube videos in HD quality. MP4, audio, shorts — all supported.",
-    url: "https://saveit.app/youtube",
+    url: "/youtube",
   },
 };
 

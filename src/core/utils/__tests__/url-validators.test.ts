@@ -141,6 +141,8 @@ describe("isValidRedditUrl", () => {
     "https://reddit.com/comments/1oc9pow/",
     "https://www.reddit.com/gallery/1oc9pow",
     "https://redd.it/1oc9pow",
+    "https://www.reddit.com/r/indowibu/s/V7GaQ3c8qu",
+    "https://packaged-media.redd.it/83tghfh1b16h1/pb/m2-res_1280p.mp4?m=DASHPlaylist.mpd",
   ])("validates %s", (url) => {
     expect(isValidRedditUrl(url)).toBe(true);
   });
@@ -202,6 +204,11 @@ describe("isPlatformUrl", () => {
     ["https://threads.com/@user/post/ABC_123", "threads"],
     ["https://threads.com/share/Fc4SJIEJOJ", "threads"],
     ["https://redd.it/1oc9pow", "reddit"],
+    ["https://www.reddit.com/r/indowibu/s/V7GaQ3c8qu", "reddit"],
+    [
+      "https://packaged-media.redd.it/83tghfh1b16h1/pb/m2-res_1280p.mp4?m=DASHPlaylist.mpd",
+      "reddit",
+    ],
   ])("routes %s to %s", (url, platform) => {
     expect(isPlatformUrl(url)).toBe(platform);
   });
