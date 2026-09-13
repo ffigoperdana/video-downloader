@@ -5,6 +5,7 @@ import {
   isValidFacebookUrl,
   isValidTwitterUrl,
   isValidThreadsUrl,
+  isValidRedditUrl,
   isPlatformUrl,
 } from "../url-validators";
 
@@ -134,6 +135,26 @@ describe("isValidThreadsUrl", () => {
   });
 });
 
+describe("isValidRedditUrl", () => {
+  it.each([
+    "https://www.reddit.com/r/videos/comments/1oc9pow/a_public_video/",
+    "https://reddit.com/comments/1oc9pow/",
+    "https://www.reddit.com/gallery/1oc9pow",
+    "https://redd.it/1oc9pow",
+  ])("validates %s", (url) => {
+    expect(isValidRedditUrl(url)).toBe(true);
+  });
+
+  it.each([
+    "https://www.reddit.com/r/videos/",
+    "https://reddit.com/",
+    "https://redd.it/",
+    "not a url",
+  ])("rejects %s", (url) => {
+    expect(isValidRedditUrl(url)).toBe(false);
+  });
+});
+
 describe("isPlatformUrl", () => {
   it("detects youtube", () => {
     expect(isPlatformUrl("https://youtube.com/watch?v=dQw4w9WgXcQ")).toBe("youtube");
@@ -161,6 +182,14 @@ describe("isPlatformUrl", () => {
     );
   });
 
+  it("detects reddit", () => {
+    expect(
+      isPlatformUrl(
+        "https://www.reddit.com/r/videos/comments/1oc9pow/a_public_video/",
+      ),
+    ).toBe("reddit");
+  });
+
   it("returns null for unknown URL", () => {
     expect(isPlatformUrl("https://example.com/video")).toBeNull();
   });
@@ -172,6 +201,7 @@ describe("isPlatformUrl", () => {
     ["https://www.facebook.com/photo/?fbid=123", "facebook"],
     ["https://threads.com/@user/post/ABC_123", "threads"],
     ["https://threads.com/share/Fc4SJIEJOJ", "threads"],
+    ["https://redd.it/1oc9pow", "reddit"],
   ])("routes %s to %s", (url, platform) => {
     expect(isPlatformUrl(url)).toBe(platform);
   });

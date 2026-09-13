@@ -6,13 +6,19 @@ import {
   cleanThreadsUrl,
 } from "@/core/utils/threads-url";
 import { resolveThreadsUrlCandidates } from "./threads-resolver.service";
+import {
+  extractRedditImageUrls,
+  getRedditPost,
+  isRedditNativeVideo,
+} from "./reddit-post.service";
 
 export type ImagePlatform =
   | "tiktok"
   | "instagram"
   | "facebook"
   | "twitter"
-  | "threads";
+  | "threads"
+  | "reddit";
 
 export interface SocialImageAsset {
   index: number;
@@ -144,6 +150,7 @@ const PLATFORM_HOSTS: Record<ImagePlatform, RegExp> = {
   facebook: /(^|\.)(facebook\.com|fb\.watch)$/i,
   twitter: /(^|\.)(twitter\.com|x\.com)$/i,
   threads: /(^|\.)(threads\.net|threads\.com)$/i,
+  reddit: /(^|\.)(reddit\.com|redd\.it)$/i,
 };
 
 const IMAGE_EXTENSIONS = new Set([
@@ -1117,6 +1124,25 @@ export async function getInstagramMediaAssets(
   };
 }
 
+async function extractRedditImages(sourceUrl: string): Promise<ExtractedImage[]> {
+  const post = await getRedditPost(sourceUrl);
+  if (isRedditNativeVideo(post)) return [];
+
+  const directImages = uniqueImagesWithDefault(
+    extractRedditImageUrls(post),
+    "jpg",
+  );
+  if (directImages.length) return directImages;
+
+  const [galleryResult, pageResult] = await Promise.allSettled([
+    extractWithGalleryDl(sourceUrl),
+    extractPageImages(sourceUrl),
+  ]);
+  const gallery = galleryResult.status === "fulfilled" ? galleryResult.value : [];
+  const page = pageResult.status === "fulfilled" ? pageResult.value : [];
+  return mergeExtractedImages([...gallery, ...page]);
+}
+
 export async function extractSocialImages(
   sourceUrl: string,
   platform: ImagePlatform,
@@ -1157,6 +1183,10 @@ export async function extractSocialImages(
       galleryResult.status === "fulfilled" ? galleryResult.value : [];
     const page = pageResult.status === "fulfilled" ? pageResult.value : [];
     return mergeExtractedImages([...gallery, ...page]);
+  }
+
+  if (platform === "reddit") {
+    return extractRedditImages(sourceUrl);
   }
 
   const tasks: Array<Promise<ExtractedImage[]>> = [

@@ -24,6 +24,7 @@ permanently stored by the application.
 | Facebook | Videos and Reels | MP3 | Image posts and multi-image posts | Direct permalinks and cookies are recommended |
 | X / Twitter | Videos and GIFs | When available | Image posts | Public posts only |
 | Threads | Video posts | MP3 | Image posts | Experimental; supports canonical, /t, and /share links; use Retry Failed when an interrupted job needs another attempt |
+| Reddit | Native video posts | MP3 | Image posts and galleries | Public reddit.com, gallery, and redd.it post links |
 
 The application also includes URL/platform validation, links to the correct
 downloader when a URL is pasted on the wrong page, responsive image previews,
@@ -50,6 +51,9 @@ for sharing to apps such as WhatsApp.
 - Threads accepts both `threads.com` and `threads.net` links in canonical
   `/@user/post/<id>`, `/t/<id>`, `/@/post/<id>`, and `/share/<id>` forms.
   Deleted or expired share links still cannot be recovered.
+- Reddit supports public native videos, image posts, and galleries. Video
+  downloads depend on the post's separate video/audio tracks remaining
+  available; private, deleted, or externally hosted media is not supported.
 - Progress downloads are assembled on the SaveIt server in temporary files and
   then streamed to the browser after completion. Very large files therefore use
   homelab disk space and bandwidth rather than browser memory.
@@ -73,6 +77,8 @@ media type:
 - [`@tobyg74/tiktok-api-dl`](https://github.com/TobyG74/tiktok-api-dl)
   provides an additional TikTok photo/slideshow fallback when TikWM links are
   stale or incomplete.
+- Reddit's public post JSON provides direct image/gallery metadata, while
+  yt-dlp selects and merges native video and audio streams.
 - Open Graph and embedded page metadata provide additional image fallbacks.
 - `ffmpeg` merges YouTube streams and converts supported audio to MP3.
 - Cheerio parses fallback HTML responses.

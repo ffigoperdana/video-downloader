@@ -16,6 +16,7 @@ const PLATFORMS = new Set<ImagePlatform>([
   "facebook",
   "twitter",
   "threads",
+  "reddit",
 ]);
 
 type ImageOutputFormat = "jpg" | "png";
@@ -100,17 +101,34 @@ async function fetchImageUpstream(
             Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
           },
         ]
-      : [
-          {
-            "User-Agent": userAgent,
-            Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-            Referer: sourceUrl,
-          },
-          {
-            "User-Agent": userAgent,
-            Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-          },
-        ];
+      : platform === "reddit"
+        ? [
+            {
+              "User-Agent": userAgent,
+              Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+              Referer: "https://www.reddit.com/",
+            },
+            {
+              "User-Agent": userAgent,
+              Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+              Referer: sourceUrl,
+            },
+            {
+              "User-Agent": userAgent,
+              Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            },
+          ]
+        : [
+            {
+              "User-Agent": userAgent,
+              Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+              Referer: sourceUrl,
+            },
+            {
+              "User-Agent": userAgent,
+              Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            },
+          ];
 
   let lastStatus = 0;
   for (const headers of attempts) {

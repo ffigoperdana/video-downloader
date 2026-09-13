@@ -5,7 +5,7 @@ import Navbar from "@/components/navbar";
 export const metadata: Metadata = {
   title: "SaveIt — Free Video & Image Downloader",
   description:
-    "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, and Threads for free.",
+    "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, Threads, and Reddit for free.",
   alternates: { canonical: "https://saveit.app" },
 };
 
@@ -142,6 +142,38 @@ const PLATFORMS = [
       "Image galleries",
     ],
   },
+  {
+    href: "/reddit",
+    name: "Reddit",
+    tagline: "Videos, Images & Galleries",
+    description:
+      "Download public Reddit videos with audio, image posts, and every photo in a gallery.",
+    accent: "from-orange-500 to-red-500",
+    border: "border-orange-500/20 hover:border-orange-500/50",
+    glow: "hover:shadow-orange-500/10",
+    bg: "from-orange-500/8 to-transparent",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="w-7 h-7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <circle cx="12" cy="13" r="7.2" />
+        <circle cx="9.2" cy="12.3" r="0.8" fill="currentColor" />
+        <circle cx="14.8" cy="12.3" r="0.8" fill="currentColor" />
+        <path d="M8.8 15.2c1.9 1.2 4.5 1.2 6.4 0" strokeLinecap="round" />
+        <path d="M14.7 5.9l1.8-2.3 1.8.6" strokeLinecap="round" />
+      </svg>
+    ),
+    features: [
+      "Native videos with audio",
+      "Image posts",
+      "Photo galleries",
+      "redd.it links",
+    ],
+  },
 ];
 
 const BENEFITS = [
@@ -182,8 +214,8 @@ const BENEFITS = [
   },
   {
     icon: "🎯",
-    title: "6 Platforms",
-    body: "Video, audio, and public image posts from six major platforms in one place.",
+    title: "7 Platforms",
+    body: "Video, audio, and public image posts from seven major platforms in one place.",
   },
 ];
 
@@ -212,7 +244,7 @@ const FAQS = [
   },
   {
     q: "Which platforms are supported?",
-    a: "YouTube supports video and audio. TikTok, Instagram, Facebook, X, and Threads support public videos and image posts.",
+    a: "YouTube supports video and audio. TikTok, Instagram, Facebook, X, Threads, and Reddit support public videos and image posts.",
   },
   {
     q: "Can I download TikTok videos without watermark?",
@@ -224,7 +256,7 @@ const FAQS = [
   },
   {
     q: "Can I download image posts and carousels?",
-    a: "Yes. Public image posts are supported on TikTok, Instagram, Facebook, X, and Threads. Each discovered image has its own download button.",
+    a: "Yes. Public image posts are supported on TikTok, Instagram, Facebook, X, Threads, and Reddit. Each discovered image has its own download button.",
   },
   {
     q: "Does SaveIt work on mobile?",
@@ -284,7 +316,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="animate-fade-up delay-200 text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed font-light">
-            Save videos, audio, and public image posts from six platforms in
+            Save videos, audio, and public image posts from seven platforms in
             their available quality. No sign-up required.
           </p>
 
@@ -323,7 +355,7 @@ export default function LandingPage() {
           {/* Stats row */}
           <div className="animate-fade-up delay-400 flex items-center justify-center gap-8 pt-4">
             {[
-              ["6 platforms", "supported"],
+              ["7 platforms", "supported"],
               ["1080p", "max quality"],
               ["0 seconds", "sign-up time"],
             ].map(([val, label]) => (
@@ -613,6 +645,12 @@ export default function LandingPage() {
               className="hover:text-zinc-400 transition-colors"
             >
               Threads
+            </Link>
+            <Link
+              href="/reddit"
+              className="hover:text-zinc-400 transition-colors"
+            >
+              Reddit
             </Link>
           </div>
         </div>

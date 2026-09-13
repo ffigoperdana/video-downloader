@@ -13,6 +13,7 @@ const PLATFORM_LABELS: Record<PlatformType, string> = {
   facebook: "Facebook",
   twitter: "X / Twitter",
   threads: "Threads",
+  reddit: "Reddit",
 };
 
 interface UrlValidationErrorProps {

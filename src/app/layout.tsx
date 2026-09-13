@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: "%s | SaveIt",
   },
   description:
-    "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, and Threads.",
+    "Download public videos and images from YouTube, TikTok, Instagram, Facebook, X, Threads, and Reddit.",
   keywords: [
     "video downloader",
     "youtube downloader",
@@ -36,6 +36,9 @@ export const metadata: Metadata = {
     "twitter image downloader",
     "x video downloader",
     "threads downloader",
+    "reddit downloader",
+    "reddit video downloader",
+    "reddit image downloader",
     "social media image downloader",
     "download youtube video",
     "download tiktok no watermark",
@@ -55,7 +58,7 @@ export const metadata: Metadata = {
     siteName: "SaveIt",
     title: "SaveIt — Download Videos & Images Free",
     description:
-      "Download public videos and image posts from YouTube, TikTok, Instagram, Facebook, X, and Threads.",
+      "Download public videos and image posts from YouTube, TikTok, Instagram, Facebook, X, Threads, and Reddit.",
     images: [
       {
         url: "/og-image.png",
@@ -69,7 +72,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "SaveIt — Download Videos & Images Free",
     description:
-      "Download public videos and images from six supported platforms.",
+      "Download public videos and images from seven supported platforms.",
     images: ["/og-image.png"],
   },
   robots: {

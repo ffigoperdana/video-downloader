@@ -1,4 +1,5 @@
 import { isValidThreadsUrl as validateThreadsUrl } from "./threads-url";
+import { isValidRedditUrl as validateRedditUrl } from "./reddit-url";
 
 export type PlatformType =
   | "youtube"
@@ -6,7 +7,8 @@ export type PlatformType =
   | "instagram"
   | "facebook"
   | "twitter"
-  | "threads";
+  | "threads"
+  | "reddit";
 
 function parseHttpUrl(rawUrl: string): URL | null {
   const value = rawUrl.trim();
@@ -91,6 +93,10 @@ export function isValidThreadsUrl(rawUrl: string): boolean {
   return validateThreadsUrl(rawUrl);
 }
 
+export function isValidRedditUrl(rawUrl: string): boolean {
+  return validateRedditUrl(rawUrl);
+}
+
 export function isPlatformUrl(url: string): PlatformType | null {
   if (isValidYoutubeUrl(url)) return "youtube";
   if (isValidTikTokUrl(url)) return "tiktok";
@@ -98,5 +104,6 @@ export function isPlatformUrl(url: string): PlatformType | null {
   if (isValidFacebookUrl(url)) return "facebook";
   if (isValidTwitterUrl(url)) return "twitter";
   if (isValidThreadsUrl(url)) return "threads";
+  if (isValidRedditUrl(url)) return "reddit";
   return null;
 }

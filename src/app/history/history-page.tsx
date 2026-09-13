@@ -30,6 +30,10 @@ const PLATFORM_COLORS: Record<string, { badge: string; gradient: string }> = {
     badge: "bg-zinc-500/10 text-zinc-400 border-zinc-400/20",
     gradient: "from-zinc-100 to-zinc-400",
   },
+  reddit: {
+    badge: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    gradient: "from-orange-500 to-red-500",
+  },
 };
 
 function timeAgo(ts: number): string {

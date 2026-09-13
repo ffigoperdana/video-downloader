@@ -71,6 +71,27 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    href: "/reddit",
+    label: "Reddit",
+    accent: "hover:text-orange-300 hover:border-orange-500/50",
+    dot: "bg-orange-500",
+    icon: (
+      <svg
+        viewBox="0 0 24 24"
+        className="w-3.5 h-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <circle cx="12" cy="13" r="7.2" />
+        <circle cx="9.2" cy="12.3" r="0.8" fill="currentColor" />
+        <circle cx="14.8" cy="12.3" r="0.8" fill="currentColor" />
+        <path d="M8.8 15.2c1.9 1.2 4.5 1.2 6.4 0" strokeLinecap="round" />
+        <path d="M14.7 5.9l1.8-2.3 1.8.6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Navbar() {

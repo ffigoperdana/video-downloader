@@ -419,6 +419,7 @@ describe("isSupportedPostUrl", () => {
     ["instagram", "https://www.instagram.com/p/ABC123/"],
     ["facebook", "https://www.facebook.com/photo/?fbid=123"],
     ["tiktok", "https://www.tiktok.com/@user/photo/123"],
+    ["reddit", "https://www.reddit.com/r/pics/comments/1oc9pow/a_public_image/"],
   ] as const)("allows %s URLs", (platform, url) => {
     expect(isSupportedPostUrl(url, platform)).toBe(true);
   });
